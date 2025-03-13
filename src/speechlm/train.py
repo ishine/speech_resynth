@@ -12,7 +12,7 @@ from transformers import LlamaConfig, LlamaForCausalLM
 
 from .data import UnitDataset
 from .eval import _eval
-from .utils import get_lr_schedule
+from .utils import fix_random_seed, get_lr_schedule
 
 
 @torch.inference_mode()
@@ -72,6 +72,8 @@ def validate(config, model, step: int, writer: SummaryWriter, num_special_tokens
 
 
 def train(config):
+    fix_random_seed()
+
     torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
     dist.init_process_group("nccl")
     rank = dist.get_rank()
@@ -99,8 +101,6 @@ def train(config):
         batch_size=config.dataloader.batch_size_per_device,
         shuffle=(sampler is None),
         sampler=sampler,
-        num_workers=config.dataloader.num_workers,
-        persistent_workers=True,
     )
 
     if rank == 0:
@@ -135,6 +135,7 @@ def train(config):
 
     last_epoch = 0
     step = 0
+    global_step = 0
 
     # resume training
     checkpoint_path = Path(config.model.path) / "checkpoint"
@@ -143,6 +144,7 @@ def train(config):
 
         last_epoch = ckpt["epoch"]
         step = ckpt["step"]
+        global_step = ckpt["global_step"]
         model.module.load_state_dict(ckpt["model"])
         optimizer.load_state_dict(ckpt["optimizer"])
         lr_scheduler.load_state_dict(ckpt["scheduler"])
@@ -152,18 +154,23 @@ def train(config):
         del ckpt
         torch.cuda.empty_cache()
 
-    for epoch in range(last_epoch + 1, config.optim.epoch + 1):
+    for epoch in range(last_epoch, config.optim.epoch):
         model.train()
 
         if dist.is_initialized():
             sampler.set_epoch(epoch)
 
-        for batch in train_loader:
+        train_loader_iter = iter(train_loader)
+
+        for _ in range(step):
+            next(train_loader_iter)
+
+        for step, batch in enumerate(train_loader_iter, start=step):
             with torch.amp.autocast("cuda", dtype=torch.bfloat16):
                 loss = model(
-                    input_ids=batch["input_ids"].cuda(),
-                    attention_mask=batch["attention_mask"].cuda(),
-                    labels=batch["labels"].cuda(),
+                    input_ids=batch["input_ids"].to(device_id),
+                    attention_mask=batch["attention_mask"].to(device_id),
+                    labels=batch["labels"].to(device_id),
                 ).loss
             scaler.scale(loss).backward()
 
@@ -183,33 +190,38 @@ def train(config):
             lr_scheduler.step()
 
             step += 1
+            global_step += 1
 
             # tensorboard log
-            if rank == 0 and step % config.optim.summary_interval == 0:
-                writer.add_scalar("train/loss", loss.item(), step)
-                writer.add_scalar("train/lr", lr, step)
-                writer.add_scalar("train/scale", scale, step)
+            if rank == 0 and global_step % config.optim.summary_interval == 0:
+                writer.add_scalar("train/loss", loss.item(), global_step)
+                writer.add_scalar("train/lr", lr, global_step)
+                writer.add_scalar("train/scale", scale, global_step)
                 if config.optim.max_norm is not None:
-                    writer.add_scalar("train/grad_norm", grad_norm.item(), step)
+                    writer.add_scalar("train/grad_norm", grad_norm.item(), global_step)
 
                 # trace the peak GPU memory
-                writer.add_scalar("memory/allocated (GB)", torch.cuda.max_memory_allocated() / 2**30, step)
-                writer.add_scalar("memory/reserved (GB)", torch.cuda.max_memory_reserved() / 2**30, step)
+                writer.add_scalar("memory/allocated (GB)", torch.cuda.max_memory_allocated() / 2**30, global_step)
+                writer.add_scalar("memory/reserved (GB)", torch.cuda.max_memory_reserved() / 2**30, global_step)
 
-        if rank == 0:
-            validate(config, model, step, writer, num_special_tokens)
+            if rank == 0 and global_step % config.optim.validation_save_interval == 0:
+                validate(config, model, global_step, writer, num_special_tokens)
 
-            # save model
-            ckpt = {
-                "epoch": epoch,
-                "step": step,
-                "model": model.module.state_dict(),
-                "optimizer": optimizer.state_dict(),
-                "scheduler": lr_scheduler.state_dict(),
-                "scaler": scaler.state_dict(),
-            }
-            Path(config.model.path).parent.mkdir(parents=True, exist_ok=True)
-            model.module.save_pretrained(config.model.path)
-            torch.save(ckpt, checkpoint_path)
+                # save model
+                ckpt = {
+                    "epoch": epoch,
+                    "step": step,
+                    "global_step": global_step,
+                    "model": model.module.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                    "scheduler": lr_scheduler.state_dict(),
+                    "scaler": scaler.state_dict(),
+                }
+                Path(config.model.path).parent.mkdir(parents=True, exist_ok=True)
+                model.module.save_pretrained(config.model.path)
+                torch.save(ckpt, checkpoint_path)
+                torch.save(ckpt, checkpoint_path.with_name(f"{checkpoint_path.name}{global_step:08}"))
+
+        step = 0
 
     torch.distributed.destroy_process_group()

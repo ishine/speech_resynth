@@ -1,9 +1,20 @@
 import json
+import random
 from itertools import islice
 from typing import Any, Dict, Sequence
 
+import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
+
+
+def fix_random_seed(seed=0):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def load_named_units_from_json(file, batch_size: int, num_special_tokens: int = 2) -> Dict[str, Any]:

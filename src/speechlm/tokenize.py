@@ -111,13 +111,7 @@ def _encode(encoder: SpeechEncoder, file, data_loader: torch.utils.data.DataLoad
     Path(file).parent.mkdir(parents=True, exist_ok=True)
     with open(file, "w") as f:
         for item in tqdm(data_loader):
-            try:
-                outputs = encoder(item["input_values"].cuda())
-            except torch.cuda.OutOfMemoryError:
-                torch.cuda.empty_cache()
-                encoder.cpu()
-                outputs = encoder(item["input_values"])
-                encoder.cuda()
+            outputs = encoder(item["input_values"].cuda())
 
             unicodes = convert_units_to_unicode(outputs["units"].tolist())
 

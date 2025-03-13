@@ -39,6 +39,7 @@ optim:
   beta2: 0.98
   max_norm: 1.0
   summary_interval: 100
+  validation_save_interval: 10000
 
 s2u:
   dense_model_name: "hubert-base-ls960"
