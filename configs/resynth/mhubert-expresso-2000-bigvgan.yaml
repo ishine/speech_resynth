@@ -64,21 +64,40 @@ flow_matching:
   predict_duration: false
 
 vocoder:
-  path: "ryota-komatsu/fastspeech2_conformer_hifigan"
-  batch_size: 64
+  path: "models/bigvgan"
+  batch_size: 24
   segment_size: 16080
   num_workers: 20
-  training_epochs: 181  # 1M steps
+  training_epochs: 68  # 1M steps
 
   num_gpus: 1
-  learning_rate: 0.0002
+  learning_rate: 0.0001
   adam_b1: 0.8
   adam_b2: 0.99
-  lr_decay: 0.999
+  lr_decay: 0.9999996
   seed: 1234
 
+  model_in_dim: 80
   upsample_rates: [5, 4, 4, 2, 2]
   upsample_kernel_sizes: [10, 9, 8, 4, 4]
+  upsample_initial_channel: 512
+  resblock_kernel_sizes: [3,7,11]
+  resblock_dilation_sizes: [[1,3,5], [1,3,5], [1,3,5]]
+
+  use_tanh_at_final: false
+  use_bias_at_final: false
+
+  activation: "snakebeta"
+  snake_logscale: true
+
+  mpd_reshapes: [2, 3, 5, 7, 11]
+  use_spectral_norm: false
+  discriminator_channel_mult: 1
+  
+  use_multiscale_melloss: true
+  lambda_melloss: 15
+
+  clip_grad_norm: 500
 
   n_fft: 400  # HuBERT
   hop_size: 320  # HuBERT

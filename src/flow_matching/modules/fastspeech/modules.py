@@ -24,7 +24,7 @@ from torch import nn
 from ...configs import ConditionalFlowMatchingConfig
 
 
-class SIGLU(nn.Module):
+class SiGLU(nn.Module):
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         x, gate = x.chunk(2, dim=-2)
         return F.silu(gate) * x
@@ -42,7 +42,7 @@ class FeedForward(nn.Module):
         self.conv1 = nn.Conv1d(
             hidden_size, intermediate_size * 2, kernel_size, stride=1, padding=(kernel_size - 1) // 2
         )
-        self.glu = SIGLU()
+        self.glu = SiGLU()
         self.dropout = nn.Dropout(dropout)
         self.conv2 = nn.Conv1d(intermediate_size, hidden_size, kernel_size, stride=1, padding=(kernel_size - 1) // 2)
 

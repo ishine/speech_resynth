@@ -41,3 +41,23 @@ class AdaptiveRMSNorm(nn.Module):
         normed = F.normalize(x, dim=-1)
         gamma = self.to_weight(condition)
         return normed * self.scale * (gamma + 1.0)
+
+
+class AdaLNZero(nn.Module):
+    """
+    https://arxiv.org/abs/2212.09748
+    """
+
+    def __init__(self, hidden_size: int):
+        super().__init__()
+        self.to_weight = nn.Linear(hidden_size, hidden_size)
+
+        nn.init.zeros_(self.to_weight.weight)
+        nn.init.zero_(self.to_weight.bias)
+
+    def forward(self, x, *, condition):
+        if condition.ndim == 2:
+            condition = rearrange(condition, "b d -> b 1 d")
+
+        gamma = self.to_weight(condition)
+        return x * gamma

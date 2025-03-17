@@ -35,7 +35,7 @@ def mel_spectrogram(
         mel_basis[str(fmax) + "_" + str(y.device)] = torch.from_numpy(mel).float().to(y.device)
         hann_window[str(y.device)] = torch.hann_window(n_fft).to(y.device)
 
-    # y = y.squeeze(1)
+    y = y.squeeze(1)
 
     spec = torch.stft(
         y,

@@ -1,6 +1,7 @@
 import fire
 from omegaconf import OmegaConf
 
+from src.bigvgan.train import train_bigvgan
 from src.flow_matching.eval import evaluate
 from src.flow_matching.preprocess import extract_features, preprocess, resample, tokenize
 from src.flow_matching.synthesize import synthesize
@@ -24,6 +25,10 @@ class TaskRunner:
     def train_hifigan(self, config: str = "configs/resynth/mhubert-expresso-2000.yaml"):
         config = OmegaConf.load(config)
         train_hifigan(config)
+
+    def train_bigvgan(self, config: str = "configs/resynth/mhubert-expresso-2000-bigvgan.yaml"):
+        config = OmegaConf.load(config)
+        train_bigvgan(config)
 
     def train_flow_matching(self, config: str = "configs/resynth/mhubert-expresso-2000.yaml"):
         config = OmegaConf.load(config)

@@ -63,7 +63,7 @@ flow_matching:
   std: 2.2615  # std of log mel-spectrogram
   predict_duration: true
 
-hifigan:
+vocoder:
   path: "ryota-komatsu/fastspeech2_conformer_hifigan"
   batch_size: 64
   segment_size: 16080

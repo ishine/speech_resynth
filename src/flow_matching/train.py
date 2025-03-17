@@ -27,7 +27,7 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
 
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
-    vocoder = FastSpeech2ConformerHifiGan.from_pretrained(config.hifigan.path).cuda()
+    vocoder = FastSpeech2ConformerHifiGan.from_pretrained(config.vocoder.path).cuda()
     asr = AutoModelForSpeechSeq2Seq.from_pretrained(
         config.asr.name,
         torch_dtype=torch_dtype,
