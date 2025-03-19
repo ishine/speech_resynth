@@ -4,7 +4,7 @@ dataset:
 
   unicode_train: "data/speechlm/hubert/unicode/train"
   train_file: "data/speechlm/hubert/unit/train.txt"
-  units_per_sample: 128
+  units_per_sample: 125
 
   swuggy_dev_file: "data/speechlm/hubert/unit/lexical/dev.json"
   sblimp_dev_file: "data/speechlm/hubert/unit/syntactic/dev.json"
@@ -16,7 +16,7 @@ dataset:
   result_dir: "results/speechlm/hubert"
 
 dataloader:
-  batch_size_per_device: 96  # effective batch size (tokens) = dataset.units_per_sample * batch_size_per_device * #GPUs
+  batch_size_per_device: 320  # effective batch size (tokens) = dataset.units_per_sample * batch_size_per_device * #GPUs
   num_workers: 16
 
 model:
@@ -40,6 +40,7 @@ optim:
   max_norm: 1.0
   summary_interval: 100
   validation_save_interval: 10000
+  total_steps: 400000
 
 s2u:
   dense_model_name: "hubert-base-ls960"

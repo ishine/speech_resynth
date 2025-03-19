@@ -125,7 +125,7 @@ def train(config):
     # learning rate scheduler
     lr_scheduler = get_lr_schedule(
         optimizer,
-        config.optim.epoch * len(train_loader),
+        config.optim.total_steps,
         config.optim.warmup_steps,
         config.optim.lr,
         config.optim.lr_min,
@@ -221,6 +221,10 @@ def train(config):
                 model.module.save_pretrained(config.model.path)
                 torch.save(ckpt, checkpoint_path)
                 torch.save(ckpt, checkpoint_path.with_name(f"{checkpoint_path.name}{global_step:08}"))
+
+                if global_step == config.optim.total_steps:
+                    torch.distributed.destroy_process_group()
+                    return
 
         step = 0
 

@@ -65,10 +65,11 @@ flow_matching:
 
 vocoder:
   path: "models/bigvgan"
-  batch_size: 24
+  batch_size: 20
   segment_size: 16080
   num_workers: 20
-  training_epochs: 68  # 1M steps
+  training_epochs: 57  # 1M steps
+  total_steps: 1000000
 
   num_gpus: 1
   learning_rate: 0.0001
@@ -97,7 +98,7 @@ vocoder:
   use_multiscale_melloss: true
   lambda_melloss: 15
 
-  clip_grad_norm: 500
+  clip_grad_norm: 200
 
   n_fft: 400  # HuBERT
   hop_size: 320  # HuBERT

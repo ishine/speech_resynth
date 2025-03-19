@@ -152,7 +152,7 @@ def train(rank, config):
             if rank == 0:
                 start_b = time.time()
 
-            with torch.amp.autocast("cuda"):
+            with torch.amp.autocast("cuda", dtype=torch.bfloat16):
                 x, y, mask = batch
                 x = x.to(device)
                 y = y.to(device)
@@ -182,7 +182,7 @@ def train(rank, config):
             scaler_d.update()
 
             # Generator
-            with torch.amp.autocast("cuda"):
+            with torch.amp.autocast("cuda", dtype=torch.bfloat16):
                 # L1 Mel-Spectrogram Loss
                 loss_mel = fn_mel_loss_multiscale(y, y_g_hat) * config.vocoder.lambda_melloss
 
@@ -234,14 +234,17 @@ def train(rank, config):
                             "epoch": epoch,
                         },
                     )
+                    if steps == config.vocoder.total_steps:
+                        return
 
                 # Tensorboard summary logging
                 if steps % config.vocoder.summary_interval == 0:
                     sw.add_scalar("training/gen_loss_total", loss_gen_all, steps)
                     sw.add_scalar("training/mel_spec_error", mel_error, steps)
+                    sw.add_scalar("training/grad_norm_g", grad_norm_g.item(), steps)
 
                 # Validation
-                if steps % config.vocoder.validation_interval == 0:
+                if steps % config.vocoder.validation_interval == 0 and steps != 0:
                     generator.eval()
                     torch.cuda.empty_cache()
                     val_err_tot = 0
@@ -254,7 +257,7 @@ def train(rank, config):
                             val_err_tot += F.l1_loss(x[mask], y_g_hat_mel[mask]).item()
 
                             if j < 5:
-                                if steps == 0:
+                                if steps == config.vocoder.validation_interval:
                                     sw.add_audio(f"gt/y_{j}", y[0], steps, 16000)
                                     sw.add_figure(f"gt/y_spec_{j}", plot_spectrogram(x[0].cpu()), steps)
 
