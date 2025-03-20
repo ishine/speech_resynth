@@ -20,8 +20,10 @@ def validate(config, model, step: int, writer: SummaryWriter, num_special_tokens
     torch.cuda.empty_cache()
     model.eval()
 
+    os.environ["APP_DIR"] = str(Path(config.dataset.APP_DIR).expanduser())
+
     if not Path(config.dataset.result_dir).is_dir():
-        subprocess.run(["zrc", "submission:init", "sLM21", config.dataset.result_dir])
+        subprocess.run(["zrc", "submission:init", "sLM21", config.dataset.result_dir], env=os.environ)
 
     _eval(
         model,

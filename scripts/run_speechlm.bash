@@ -1,14 +1,16 @@
-#!/bin/sh
+#!/bin/bash
 
 #$ -cwd                      ## Execute a job in the current directory
 #$ -l node_h=1               ## Use number of node
 #$ -l h_rt=24:00:00          ## Running job time
+#$ -p -5
+#$ -m abe
+#$ -M EMAIL_ADDRESS
 
-module load cuda
+module load cuda/12.1.0
 module load intel
-module load cudnn
-module load nccl
-module load openmpi
+module load cudnn/9.0.0
+module load nccl/2.20.5
 
 module load miniconda
 eval "$(/apps/t4/rhel9/free/miniconda/24.1.2/bin/conda shell.bash hook)"

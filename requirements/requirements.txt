@@ -1,4 +1,4 @@
---extra-index-url https://download.pytorch.org/whl/cu124
+--extra-index-url https://download.pytorch.org/whl/cu121
 accelerate==1.4.0
 einops==0.8.1
 einx==0.3.0
@@ -11,7 +11,7 @@ numpy==1.22.0
 pytorch-lightning==2.5.0.post0
 scikit-learn==1.4.2
 tensorboard==2.17.0
-torch==2.5.1+cu124
-torchaudio==2.5.1+cu124
+torch==2.5.1+cu121
+torchaudio==2.5.1+cu121
 transformers==4.49.0
 zerospeech-benchmarks==0.9.4

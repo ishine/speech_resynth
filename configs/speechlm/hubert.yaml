@@ -11,8 +11,7 @@ dataset:
   swuggy_test_file: "data/speechlm/hubert/unit/lexical/test.json"
   sblimp_test_file: "data/speechlm/hubert/unit/syntactic/test.json"
 
-  swuggy_dir: "~/zr-data/datasets/sLM21-dataset/lexical"
-  sblimp_dir: "~/zr-data/datasets/sLM21-dataset/syntactic"
+  APP_DIR: "data/zr-data"
   result_dir: "results/speechlm/hubert"
 
 dataloader:

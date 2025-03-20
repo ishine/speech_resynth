@@ -36,8 +36,10 @@ def tokenize(config):
 
 
 def tokenize_slm21(config):
-    swuggy_dir = Path(config.dataset.swuggy_dir).expanduser()
-    sblimp_dir = Path(config.dataset.sblimp_dir).expanduser()
+    app_dir = Path(config.dataset.APP_DIR).expanduser()
+
+    swuggy_dir = app_dir / "datasets/sLM21-dataset/lexical"
+    sblimp_dir = app_dir / "datasets/sLM21-dataset/syntactic"
 
     swuggy_dev_paths = list(swuggy_dir.glob("dev/*.wav"))
     sblimp_dev_paths = list(sblimp_dir.glob("dev/*.wav"))

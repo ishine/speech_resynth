@@ -1,6 +1,6 @@
 #!/bin/sh
 
-dataset_root=${1:-~/zr-data/datasets}
+dataset_root=${1:-data/zr-data/datasets}
 
 wget -t 0 -c -P ${dataset_root} https://download.zerospeech.com/datasets/sLM21.dataset.zip
 
