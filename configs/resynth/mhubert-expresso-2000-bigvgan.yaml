@@ -98,7 +98,7 @@ vocoder:
   use_multiscale_melloss: true
   lambda_melloss: 15
 
-  clip_grad_norm: 200
+  clip_grad_norm: 100
 
   n_fft: 400  # HuBERT
   hop_size: 320  # HuBERT

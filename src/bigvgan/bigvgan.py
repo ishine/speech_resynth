@@ -9,7 +9,8 @@ from typing import List
 import torch
 import torch.nn as nn
 from torch.nn import Conv1d, ConvTranspose1d
-from torch.nn.utils import remove_weight_norm, weight_norm
+from torch.nn.utils import remove_weight_norm
+from torch.nn.utils.parametrizations import weight_norm
 from transformers import PretrainedConfig, PreTrainedModel
 
 from . import activations
@@ -109,7 +110,7 @@ class AMPBlock1(torch.nn.Module):
 
         # Select which Activation1d, lazy-load cuda version to ensure backward compatibility
         if use_cuda_kernel:
-            from alias_free_activation.cuda.activation1d import Activation1d as CudaActivation1d
+            from .alias_free_activation.cuda.activation1d import Activation1d as CudaActivation1d
 
             Activation1d = CudaActivation1d
         else:
@@ -167,13 +168,15 @@ class BigVGAN(PreTrainedModel):
         - Ensure that the activation function is correctly specified in the hyperparameters (config.activation).
     """
 
+    config_class = BigVGanConfig
+
     def __init__(self, config: BigVGanConfig, use_cuda_kernel: bool = False):
         super().__init__(config)
         self.config = config
 
         # Select which Activation1d, lazy-load cuda version to ensure backward compatibility
         if use_cuda_kernel:
-            from alias_free_activation.cuda.activation1d import Activation1d as CudaActivation1d
+            from .alias_free_activation.cuda.activation1d import Activation1d as CudaActivation1d
 
             Activation1d = CudaActivation1d
         else:

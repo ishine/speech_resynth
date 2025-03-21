@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import Conv2d
-from torch.nn.utils import spectral_norm, weight_norm
+from torch.nn.utils.parametrizations import spectral_norm, weight_norm
 from torchaudio.transforms import Resample, Spectrogram
 
 from .utils import get_padding

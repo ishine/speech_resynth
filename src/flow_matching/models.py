@@ -30,8 +30,13 @@ from torch import nn
 from transformers import FastSpeech2ConformerHifiGan, FastSpeech2ConformerHifiGanConfig, PreTrainedModel
 from transformers.models.fastspeech2_conformer.modeling_fastspeech2_conformer import length_regulator
 
+from ..bigvgan.bigvgan import BigVGAN
 from ..hifigan.data import dynamic_range_compression_torch
-from .configs import ConditionalFlowMatchingConfig, ConditionalFlowMatchingWithHifiGanConfig
+from .configs import (
+    ConditionalFlowMatchingConfig,
+    ConditionalFlowMatchingWithBigVGanConfig,
+    ConditionalFlowMatchingWithHifiGanConfig,
+)
 from .modules.fastspeech.modules import ConditionalFlowMatchingDurationPredictor
 from .modules.fourier_embed import RandomFourierEmbed
 from .modules.transformer import ConvPositionEmbed, Transformer
@@ -130,7 +135,7 @@ class ConditionalFlowMatchingModel(PreTrainedModel):
         return F.mse_loss(x[mask], ut[mask]) + duration_loss
 
     @torch.inference_mode()
-    def sample(
+    def synthesize(
         self,
         input_ids: torch.LongTensor,
         dt: float = 0.1,
@@ -240,12 +245,81 @@ class ConditionalFlowMatchingWithHifiGan(PreTrainedModel):
             waveform (`list` of `torch.FloatTensor` of shape `(1, (sequence_length - 1) * 320 + 400)`):
                 Synthesized waveforms.
         """
-        spectrogram = self.model.sample(input_ids, dt, truncation_value)
+        spectrogram = self.model.synthesize(input_ids, dt, truncation_value)
 
         pad_value = dynamic_range_compression_torch(torch.tensor(0))
         mask = spectrogram.ne(pad_value).all(dim=2)
         spectrogram_lengths = mask.sum(dim=1)
         waveform_lengths = self._get_waveform_lengths(spectrogram_lengths)
+
+        waveform = self.vocoder(spectrogram)
+
+        outputs = []
+        for output, length in zip(waveform, waveform_lengths):
+            outputs.append(output[:length].unsqueeze(0))
+
+        return outputs
+
+
+class ConditionalFlowMatchingWithBigVGan(PreTrainedModel):
+    config_class = ConditionalFlowMatchingWithBigVGanConfig
+
+    def __init__(self, config: ConditionalFlowMatchingWithBigVGanConfig, use_cuda_kernel=False):
+        super().__init__(config)
+        self.model = ConditionalFlowMatchingModel(config.model_config)
+        self.vocoder = BigVGAN(config.vocoder_config, use_cuda_kernel=False)
+
+    @classmethod
+    def load_pretrained(cls, model_path, vocoder_path) -> "ConditionalFlowMatchingWithBigVGan":
+        model_config = ConditionalFlowMatchingConfig.from_pretrained(model_path)
+        vocoder_config = FastSpeech2ConformerHifiGanConfig.from_pretrained(vocoder_path)
+        config = ConditionalFlowMatchingWithBigVGanConfig(model_config.to_dict(), vocoder_config.to_dict())
+
+        model = cls(config)
+        model.model = ConditionalFlowMatchingModel.from_pretrained(model_path)
+        model.vocoder = BigVGAN.from_pretrained(vocoder_path)
+        return model
+
+    def _get_waveform_lengths(self, spectrogram_lengths):
+        def _conv_out_len(input_len, kernel_size, stride, padding):
+            # https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose1d.html
+            return (input_len - 1) * stride - 2 * padding + kernel_size
+
+        for kernel_size, stride in zip(
+            self.config.vocoder_config.upsample_kernel_sizes, self.config.vocoder_config.upsample_rates
+        ):
+            spectrogram_lengths = _conv_out_len(spectrogram_lengths, kernel_size, stride, (kernel_size - stride) // 2)
+
+        return spectrogram_lengths
+
+    @torch.inference_mode()
+    def forward(
+        self,
+        input_ids: torch.LongTensor,
+        dt: float = 0.1,
+        truncation_value: Optional[float] = None,
+    ) -> List[torch.FloatTensor]:
+        """
+        Args:
+            input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):
+                Input sequence of text vectors.
+            dt (`float`, defaults to 0.1):
+                Step size for the ordinary differential equation (ODE).
+            truncation_value (`float`, *optional*, defaults to `None`):
+                Truncation value of a prior sample x0~N(0, 1).
+                https://arxiv.org/abs/1809.11096
+        Returns:
+            waveform (`list` of `torch.FloatTensor` of shape `(1, (sequence_length - 1) * 320 + 400)`):
+                Synthesized waveforms.
+        """
+        spectrogram = self.model.synthesize(input_ids, dt, truncation_value)
+
+        pad_value = dynamic_range_compression_torch(torch.tensor(0))
+        mask = spectrogram.ne(pad_value).all(dim=2)
+        spectrogram_lengths = mask.sum(dim=1)
+        waveform_lengths = self._get_waveform_lengths(spectrogram_lengths)
+
+        spectrogram = spectrogram.transpose(2, 1)
 
         waveform = self.vocoder(spectrogram)
 

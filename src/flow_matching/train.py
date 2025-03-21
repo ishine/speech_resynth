@@ -51,7 +51,7 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
     ref_scores = []
 
     for n, batch in enumerate(dataloader):
-        spectrogram = model.sample(
+        spectrogram = model.synthesize(
             input_ids=batch["input_ids"].cuda(),
             dt=config.flow_matching.dt,
             truncation_value=config.flow_matching.truncation_value,

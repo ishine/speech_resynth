@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import AvgPool1d, Conv1d, Conv2d
-from torch.nn.utils import spectral_norm, weight_norm
+from torch.nn.utils.parametrizations import spectral_norm, weight_norm
 
 from .utils import get_padding
 
