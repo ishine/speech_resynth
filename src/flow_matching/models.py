@@ -30,7 +30,7 @@ from torch import nn
 from transformers import FastSpeech2ConformerHifiGan, FastSpeech2ConformerHifiGanConfig, PreTrainedModel
 from transformers.models.fastspeech2_conformer.modeling_fastspeech2_conformer import length_regulator
 
-from ..bigvgan.bigvgan import BigVGAN
+from ..bigvgan.bigvgan import BigVGAN, BigVGanConfig
 from ..hifigan.data import dynamic_range_compression_torch
 from .configs import (
     ConditionalFlowMatchingConfig,
@@ -272,7 +272,7 @@ class ConditionalFlowMatchingWithBigVGan(PreTrainedModel):
     @classmethod
     def load_pretrained(cls, model_path, vocoder_path) -> "ConditionalFlowMatchingWithBigVGan":
         model_config = ConditionalFlowMatchingConfig.from_pretrained(model_path)
-        vocoder_config = FastSpeech2ConformerHifiGanConfig.from_pretrained(vocoder_path)
+        vocoder_config = BigVGanConfig.from_pretrained(vocoder_path)
         config = ConditionalFlowMatchingWithBigVGanConfig(model_config.to_dict(), vocoder_config.to_dict())
 
         model = cls(config)

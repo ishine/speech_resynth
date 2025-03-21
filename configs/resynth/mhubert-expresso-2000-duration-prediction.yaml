@@ -93,7 +93,7 @@ vocoder:
   checkpoint_interval: 10000
   validation_interval: 10000
 
-flow_matching_with_hifigan:
+flow_matching_with_vocoder:
   name: "ryota-komatsu/flow_matching_with_hifigan"
   batch_size: 32
 

@@ -6,7 +6,7 @@ from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 
 from .data import SpeechDataset
-from .models import ConditionalFlowMatchingWithHifiGan
+from .models import ConditionalFlowMatchingWithBigVGan, ConditionalFlowMatchingWithHifiGan
 from .utils.textless import load_encoder
 
 
@@ -19,7 +19,7 @@ def synthesize(config):
     )
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        config.flow_matching_with_hifigan.batch_size,
+        config.flow_matching_with_vocoder.batch_size,
         collate_fn=SpeechDataset.collate_fn,
     )
 
@@ -30,7 +30,7 @@ def synthesize(config):
         config.flow_matching.predict_duration,
     )
 
-    decoder = ConditionalFlowMatchingWithHifiGan.from_pretrained(config.flow_matching_with_hifigan.name).cuda()
+    decoder = ConditionalFlowMatchingWithHifiGan.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
 
     for batch in tqdm(dataloader):
         input_ids = []

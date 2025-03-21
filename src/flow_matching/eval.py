@@ -10,7 +10,7 @@ from tqdm import tqdm
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
 from .data import UnitDataset
-from .models import ConditionalFlowMatchingWithHifiGan
+from .models import ConditionalFlowMatchingWithBigVGan, ConditionalFlowMatchingWithHifiGan
 from .utils.misc import cer_transform, wer_transform
 
 sys.path.append("src/utmos")
@@ -24,11 +24,11 @@ def evaluate(config):
     dataset = UnitDataset(config.dataset.test_file, config.dataset.wav_dir)
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        config.flow_matching_with_hifigan.batch_size,
+        config.flow_matching_with_vocoder.batch_size,
         collate_fn=UnitDataset.collate_fn,
     )
 
-    decoder = ConditionalFlowMatchingWithHifiGan.from_pretrained(config.flow_matching_with_hifigan.name).cuda()
+    decoder = ConditionalFlowMatchingWithHifiGan.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
 
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
     asr = AutoModelForSpeechSeq2Seq.from_pretrained(
