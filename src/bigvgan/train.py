@@ -51,6 +51,8 @@ def train(rank, config):
     mpd = MultiPeriodDiscriminator(config.vocoder).to(device)
     mrd = MultiBandDiscriminator(config.vocoder).to(device)
 
+    generator.apply_weight_norm()
+
     fn_mel_loss_multiscale = MultiScaleMelSpectrogramLoss(sampling_rate=16000)
 
     if rank == 0:
@@ -216,6 +218,9 @@ def train(rank, config):
 
                 # checkpointing
                 if steps % config.vocoder.checkpoint_interval == 0 and steps != 0:
+                    if steps == config.vocoder.total_steps:
+                        (generator.module if config.vocoder.num_gpus > 1 else generator).remove_weight_norm()
+
                     (generator.module if config.vocoder.num_gpus > 1 else generator).save_pretrained(
                         config.vocoder.path
                     )

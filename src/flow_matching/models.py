@@ -267,7 +267,7 @@ class ConditionalFlowMatchingWithBigVGan(PreTrainedModel):
     def __init__(self, config: ConditionalFlowMatchingWithBigVGanConfig, use_cuda_kernel=False):
         super().__init__(config)
         self.model = ConditionalFlowMatchingModel(config.model_config)
-        self.vocoder = BigVGAN(config.vocoder_config, use_cuda_kernel=False)
+        self.vocoder = BigVGAN(config.vocoder_config, use_cuda_kernel=use_cuda_kernel)
 
     @classmethod
     def load_pretrained(cls, model_path, vocoder_path) -> "ConditionalFlowMatchingWithBigVGan":

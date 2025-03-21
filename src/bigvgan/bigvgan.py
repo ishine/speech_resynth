@@ -74,15 +74,13 @@ class AMPBlock1(torch.nn.Module):
 
         self.convs1 = nn.ModuleList(
             [
-                weight_norm(
-                    Conv1d(
-                        channels,
-                        channels,
-                        kernel_size,
-                        stride=1,
-                        dilation=d,
-                        padding=get_padding(kernel_size, d),
-                    )
+                Conv1d(
+                    channels,
+                    channels,
+                    kernel_size,
+                    stride=1,
+                    dilation=d,
+                    padding=get_padding(kernel_size, d),
                 )
                 for d in dilation
             ]
@@ -91,15 +89,13 @@ class AMPBlock1(torch.nn.Module):
 
         self.convs2 = nn.ModuleList(
             [
-                weight_norm(
-                    Conv1d(
-                        channels,
-                        channels,
-                        kernel_size,
-                        stride=1,
-                        dilation=1,
-                        padding=get_padding(kernel_size, 1),
-                    )
+                Conv1d(
+                    channels,
+                    channels,
+                    kernel_size,
+                    stride=1,
+                    dilation=1,
+                    padding=get_padding(kernel_size, 1),
                 )
                 for _ in range(len(dilation))
             ]
@@ -147,6 +143,12 @@ class AMPBlock1(torch.nn.Module):
 
         return x
 
+    def apply_weight_norm(self):
+        for l in self.convs1:
+            weight_norm(l)
+        for l in self.convs2:
+            weight_norm(l)
+
     def remove_weight_norm(self):
         for l in self.convs1:
             remove_weight_norm(l)
@@ -186,7 +188,7 @@ class BigVGAN(PreTrainedModel):
         self.num_upsamples = len(config.upsample_rates)
 
         # Pre-conv
-        self.conv_pre = weight_norm(Conv1d(config.model_in_dim, config.upsample_initial_channel, 7, 1, padding=3))
+        self.conv_pre = Conv1d(config.model_in_dim, config.upsample_initial_channel, 7, 1, padding=3)
 
         # Transposed conv-based upsamplers. does not apply anti-aliasing
         self.ups = nn.ModuleList()
@@ -194,14 +196,12 @@ class BigVGAN(PreTrainedModel):
             self.ups.append(
                 nn.ModuleList(
                     [
-                        weight_norm(
-                            ConvTranspose1d(
-                                config.upsample_initial_channel // (2**i),
-                                config.upsample_initial_channel // (2 ** (i + 1)),
-                                k,
-                                u,
-                                padding=(k - u) // 2,
-                            )
+                        ConvTranspose1d(
+                            config.upsample_initial_channel // (2**i),
+                            config.upsample_initial_channel // (2 ** (i + 1)),
+                            k,
+                            u,
+                            padding=(k - u) // 2,
                         )
                     ]
                 )
@@ -235,7 +235,7 @@ class BigVGAN(PreTrainedModel):
 
         # Whether to use bias for the final conv_post. Default to True for backward compatibility
         self.use_bias_at_final = config.use_bias_at_final
-        self.conv_post = weight_norm(Conv1d(ch, 1, 7, 1, padding=3, bias=self.use_bias_at_final))
+        self.conv_post = Conv1d(ch, 1, 7, 1, padding=3, bias=self.use_bias_at_final)
 
         # Weight initialization
         for i in range(len(self.ups)):
@@ -272,6 +272,20 @@ class BigVGAN(PreTrainedModel):
             x = torch.clamp(x, min=-1.0, max=1.0)  # Bound the output to [-1, 1]
 
         return x.squeeze(1)
+
+    def apply_weight_norm(self):
+        try:
+            print("Removing weight norm...")
+            for l in self.ups:
+                for l_i in l:
+                    weight_norm(l_i)
+            for l in self.resblocks:
+                l.apply_weight_norm()
+            weight_norm(self.conv_pre)
+            weight_norm(self.conv_post)
+        except ValueError:
+            print("[INFO] Model already applied weight norm. Skipping!")
+            pass
 
     def remove_weight_norm(self):
         try:

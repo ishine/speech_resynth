@@ -43,6 +43,8 @@ def train(rank, config):
     mpd = MultiPeriodDiscriminator().to(device)
     msd = MultiScaleDiscriminator().to(device)
 
+    generator.apply_weight_norm()
+
     if rank == 0:
         print(generator)
         os.makedirs(config.hifigan.path, exist_ok=True)
@@ -197,6 +199,9 @@ def train(rank, config):
 
                 # checkpointing
                 if steps % config.hifigan.checkpoint_interval == 0 and steps != 0:
+                    if steps == config.vocoder.total_steps:
+                        (generator.module if config.vocoder.num_gpus > 1 else generator).remove_weight_norm()
+
                     (generator.module if config.hifigan.num_gpus > 1 else generator).save_pretrained(
                         config.hifigan.path
                     )
@@ -215,6 +220,8 @@ def train(rank, config):
                             "epoch": epoch,
                         },
                     )
+                    if steps == config.vocoder.total_steps:
+                        return
 
                 # Tensorboard summary logging
                 if steps % config.hifigan.summary_interval == 0:
