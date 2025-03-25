@@ -45,7 +45,7 @@ class TaskRunner:
     def __call__(self, config: str = "configs/resynth/mhubert-expresso-2000.yaml"):
         config = OmegaConf.load(config)
         preprocess(config)
-        train_hifigan(config)
+        train_bigvgan(config)
         train_flow_matching(config)
         evaluate(config)
 

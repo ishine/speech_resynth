@@ -28,7 +28,7 @@ def evaluate(config):
         collate_fn=UnitDataset.collate_fn,
     )
 
-    decoder = ConditionalFlowMatchingWithHifiGan.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
+    decoder = ConditionalFlowMatchingWithBigVGan.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
 
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
     asr = AutoModelForSpeechSeq2Seq.from_pretrained(

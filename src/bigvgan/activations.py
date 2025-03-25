@@ -96,13 +96,13 @@ class SnakeBeta(nn.Module):
         self.alpha_logscale = alpha_logscale
         if self.alpha_logscale:  # Log scale alphas initialized to zeros
             self.alpha = Parameter(torch.zeros(in_features) * alpha)
-            self.beta = Parameter(torch.zeros(in_features) * alpha)
+            self.bias = Parameter(torch.zeros(in_features) * alpha)
         else:  # Linear scale alphas initialized to ones
             self.alpha = Parameter(torch.ones(in_features) * alpha)
-            self.beta = Parameter(torch.ones(in_features) * alpha)
+            self.bias = Parameter(torch.ones(in_features) * alpha)
 
         self.alpha.requires_grad = alpha_trainable
-        self.beta.requires_grad = alpha_trainable
+        self.bias.requires_grad = alpha_trainable
 
         self.no_div_by_zero = 0.000000001
 
@@ -113,7 +113,7 @@ class SnakeBeta(nn.Module):
         SnakeBeta ∶= x + 1/b * sin^2 (xa)
         """
         alpha = self.alpha.unsqueeze(0).unsqueeze(-1)  # Line up with x to [B, C, T]
-        beta = self.beta.unsqueeze(0).unsqueeze(-1)
+        beta = self.bias.unsqueeze(0).unsqueeze(-1)
         if self.alpha_logscale:
             alpha = torch.exp(alpha)
             beta = torch.exp(beta)

@@ -30,7 +30,7 @@ def synthesize(config):
         config.flow_matching.predict_duration,
     )
 
-    decoder = ConditionalFlowMatchingWithHifiGan.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
+    decoder = ConditionalFlowMatchingWithBigVGan.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
 
     for batch in tqdm(dataloader):
         input_ids = []

@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org)
-[![model](https://img.shields.io/badge/%F0%9F%A4%97-Models-blue)](https://huggingface.co/ryota-komatsu/flow_matching_with_hifigan)
+[![model](https://img.shields.io/badge/%F0%9F%A4%97-Models-blue)](https://huggingface.co/ryota-komatsu/flow_matching_with_bigvgan)
 [![dataset](https://img.shields.io/badge/%F0%9F%A4%97-Datasets-blue)](https://huggingface.co/datasets/ryota-komatsu/libritts-r-mhubert-2000units)
 
 ## Setup
@@ -27,7 +27,7 @@ cd -
 import torchaudio
 from textless.data.speech_encoder import SpeechEncoder
 
-from src.flow_matching.models import ConditionalFlowMatchingWithHifiGan
+from src.flow_matching.models import ConditionalFlowMatchingWithBigVGan
 
 wav_path = "/path/to/wav"
 
@@ -40,7 +40,7 @@ encoder = SpeechEncoder.by_name(
 ).cuda()
 
 # download a pretrained model from hugging face hub
-decoder = ConditionalFlowMatchingWithHifiGan.from_pretrained("ryota-komatsu/flow_matching_with_hifigan").cuda()
+decoder = ConditionalFlowMatchingWithBigVGan.from_pretrained("ryota-komatsu/flow_matching_with_bigvgan").cuda()
 
 # load a waveform
 waveform, sr = torchaudio.load(wav_path)
@@ -48,7 +48,7 @@ waveform = torchaudio.functional.resample(waveform, sr, 16000)
 
 # encode a waveform into pseudo-phonetic units
 units = encoder(waveform.cuda())["units"]
-units = units.unsqueeze(0) + 1  # 0: pad
+units = units.unsqueeze(0) + 2  # 0: pad, 1: EOS
 
 # resynthesis
 audio_values = decoder(units)
@@ -98,6 +98,8 @@ logits = model(input_ids=input_ids).logits
 
 ## Demo
 
+Visit [demo page](https://ryota-komatsu.github.io/speech_resynth) for speech samples.
+
 Jupyter notebook demo is found [here](demo.ipynb).
 
 ## Data Preparation
@@ -135,7 +137,7 @@ Supported processing stages
 1. resample
 1. tokenize
 1. extract_features
-1. train_hifigan  # can be skipped when using a pretrained model
+1. train_bigvgan  # can be skipped when using a pretrained model
 1. train_flow_matching
 1. evaluate
 1. synthesize
