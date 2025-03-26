@@ -53,7 +53,7 @@ flow_matching:
   hidden_size: 256
   depth: 4
   heads: 2
-  intermediate_size: 896
+  intermediate_size: 1024
   ff_dropout: 0.0
   use_unet_skip_connection: false
   conv_pos_embed_kernel_size: 31

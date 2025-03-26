@@ -48,7 +48,7 @@ waveform = torchaudio.functional.resample(waveform, sr, 16000)
 
 # encode a waveform into pseudo-phonetic units
 units = encoder(waveform.cuda())["units"]
-units = units.unsqueeze(0) + 2  # 0: pad, 1: EOS
+units = units.unsqueeze(0) + 1  # 0: pad
 
 # resynthesis
 audio_values = decoder(units)
@@ -90,7 +90,7 @@ unicodes = convert_units_to_unicode(units)
 
 # BPE
 input_ids = tokenizer.encode(unicodes).ids
-input_ids = torch.tensor([input_ids], device="cuda") + 1  # 0: pad
+input_ids = torch.tensor([input_ids], device="cuda") + 2  # 0: pad, 1: EOS
 
 # Speech LM
 logits = model(input_ids=input_ids).logits

@@ -21,7 +21,7 @@ from .utils import get_padding, init_weights
 class BigVGanConfig(PretrainedConfig):
     def __init__(
         self,
-        model_in_dim: int = 100,
+        model_in_dim: int = 80,
         upsample_initial_channel: int = 512,
         upsample_rates: List[int] = [5, 4, 4, 2, 2],
         upsample_kernel_sizes: List[int] = [10, 9, 8, 4, 4],
