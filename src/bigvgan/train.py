@@ -13,7 +13,7 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
 
-from .bigvgan import BigVGAN, BigVGanConfig
+from .bigvgan import BigVGan, BigVGanConfig
 from .data import MelDataset, mel_spectrogram
 from .discriminators import MultiBandDiscriminator, MultiPeriodDiscriminator
 from .loss import MultiScaleMelSpectrogramLoss, discriminator_loss, feature_loss, generator_loss
@@ -34,7 +34,7 @@ def train(rank, config):
     torch.cuda.manual_seed(config.vocoder.seed)
     device = torch.device(f"cuda:{rank:d}")
 
-    generator = BigVGAN(
+    generator = BigVGan(
         BigVGanConfig(
             model_in_dim=config.vocoder.model_in_dim,
             upsample_initial_channel=config.vocoder.upsample_initial_channel,
@@ -67,7 +67,7 @@ def train(rank, config):
         state_dict_do = None
         last_epoch = -1
     else:
-        generator = BigVGAN.from_pretrained(config.vocoder.path).to(device)
+        generator = BigVGan.from_pretrained(config.vocoder.path).to(device)
         state_dict_do = load_checkpoint(cp_do, device)
         mpd.load_state_dict(state_dict_do["mpd"])
         mrd.load_state_dict(state_dict_do["mrd"])
@@ -160,7 +160,7 @@ def train(rank, config):
                 y = y.to(device)
                 y = y.unsqueeze(1)
 
-                y_g_hat = generator(x).unsqueeze(1)
+                y_g_hat = generator(x.transpose(1, 2)).unsqueeze(1)
                 y_g_hat_mel = mel_spectrogram(y_g_hat.squeeze(1))
 
                 # MPD
@@ -257,7 +257,7 @@ def train(rank, config):
                         for j, batch in enumerate(validation_loader):
                             x, y, mask = batch
                             x = x.to(device)
-                            y_g_hat = generator(x).unsqueeze(1)
+                            y_g_hat = generator(x.transpose(1, 2)).unsqueeze(1)
                             y_g_hat_mel = mel_spectrogram(y_g_hat.squeeze(1))
                             val_err_tot += F.l1_loss(x[mask], y_g_hat_mel[mask]).item()
 

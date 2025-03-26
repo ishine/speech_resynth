@@ -7,8 +7,17 @@ import jiwer
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
-from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, FastSpeech2ConformerHifiGan, pipeline
+from transformers import (
+    AutoConfig,
+    AutoModel,
+    AutoModelForSpeechSeq2Seq,
+    AutoProcessor,
+    FastSpeech2ConformerHifiGan,
+    FastSpeech2ConformerHifiGanConfig,
+    pipeline,
+)
 
+from ..bigvgan.bigvgan import BigVGan, BigVGanConfig
 from .configs import ConditionalFlowMatchingConfig
 from .data import UnitDataset
 from .models import ConditionalFlowMatchingModel
@@ -20,6 +29,14 @@ warnings.simplefilter("ignore", FutureWarning)
 warnings.simplefilter("ignore", DeprecationWarning)
 from ..utmos.score import Score
 
+# register BigVGan
+AutoConfig.register("bigvgan", BigVGanConfig)
+AutoModel.register(BigVGanConfig, BigVGan)
+
+# register FastSpeech2ConformerHifiGan
+AutoConfig.register("hifigan", FastSpeech2ConformerHifiGanConfig)
+AutoModel.register(FastSpeech2ConformerHifiGanConfig, FastSpeech2ConformerHifiGan)
+
 
 @torch.inference_mode()
 def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int, writer: SummaryWriter):
@@ -27,7 +44,7 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
 
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
-    vocoder = FastSpeech2ConformerHifiGan.from_pretrained(config.vocoder.path).cuda()
+    vocoder = AutoModel.from_pretrained(config.vocoder.path).cuda()
     asr = AutoModelForSpeechSeq2Seq.from_pretrained(
         config.asr.name,
         torch_dtype=torch_dtype,

@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
-from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
+from transformers import AutoConfig, AutoModelForSpeechSeq2Seq, AutoModelForTextToWaveform, AutoProcessor, pipeline
 
+from .configs import ConditionalFlowMatchingWithBigVGanConfig, ConditionalFlowMatchingWithHifiGanConfig
 from .data import UnitDataset
 from .models import ConditionalFlowMatchingWithBigVGan, ConditionalFlowMatchingWithHifiGan
 from .utils.misc import cer_transform, wer_transform
@@ -17,6 +18,14 @@ sys.path.append("src/utmos")
 warnings.simplefilter("ignore", FutureWarning)
 warnings.simplefilter("ignore", DeprecationWarning)
 from ..utmos.score import Score
+
+# register ConditionalFlowMatchingWithBigVGan
+AutoConfig.register("flow_matching_with_bigvgan", ConditionalFlowMatchingWithBigVGanConfig)
+AutoModelForTextToWaveform.register(ConditionalFlowMatchingWithBigVGanConfig, ConditionalFlowMatchingWithBigVGan)
+
+# register ConditionalFlowMatchingWithHifiGan
+AutoConfig.register("flow_matching_with_hifigan", ConditionalFlowMatchingWithHifiGanConfig)
+AutoModelForTextToWaveform.register(ConditionalFlowMatchingWithHifiGanConfig, ConditionalFlowMatchingWithHifiGan)
 
 
 @torch.inference_mode()
@@ -28,7 +37,7 @@ def evaluate(config):
         collate_fn=UnitDataset.collate_fn,
     )
 
-    decoder = ConditionalFlowMatchingWithBigVGan.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
+    decoder = AutoModelForTextToWaveform.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
 
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
     asr = AutoModelForSpeechSeq2Seq.from_pretrained(

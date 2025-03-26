@@ -19,6 +19,8 @@ from .utils import get_padding, init_weights
 
 
 class BigVGanConfig(PretrainedConfig):
+    model_type = "bigvgan"
+
     def __init__(
         self,
         model_in_dim: int = 80,
@@ -156,7 +158,7 @@ class AMPBlock1(torch.nn.Module):
             remove_parametrizations(l, "weight")
 
 
-class BigVGAN(PreTrainedModel):
+class BigVGan(PreTrainedModel):
     """
     BigVGAN is a neural vocoder model that applies anti-aliased periodic activation for residual blocks (resblocks).
     New in BigVGAN-v2: it can optionally use optimized CUDA kernels for AMP (anti-aliased multi-periodicity) blocks.
@@ -245,7 +247,17 @@ class BigVGAN(PreTrainedModel):
         # Final tanh activation. Defaults to True for backward compatibility
         self.use_tanh_at_final = config.use_tanh_at_final
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x (`torch.FloatTensor` of shape `(batch_size, sequence_length, model_in_dim)`):
+                Spectrograms.
+        Returns:
+            x (`torch.FloatTensor` of shape `(batch_size, (sequence_length - 1) * 320 + 400)`):
+                Waveforms.
+        """
+        x = x.transpose(2, 1)  # make channel first for Conv1d
+
         # Pre-conv
         x = self.conv_pre(x)
 

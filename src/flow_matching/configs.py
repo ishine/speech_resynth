@@ -44,6 +44,7 @@ class ConditionalFlowMatchingConfig(PretrainedConfig):
 
 
 class ConditionalFlowMatchingWithHifiGanConfig(PretrainedConfig):
+    model_type = "flow_matching_with_hifigan"
     sub_configs = {"model_config": ConditionalFlowMatchingConfig, "vocoder_config": FastSpeech2ConformerHifiGanConfig}
 
     def __init__(
@@ -64,6 +65,7 @@ class ConditionalFlowMatchingWithHifiGanConfig(PretrainedConfig):
 
 
 class ConditionalFlowMatchingWithBigVGanConfig(PretrainedConfig):
+    model_type = "flow_matching_with_bigvgan"
     sub_configs = {"model_config": ConditionalFlowMatchingConfig, "vocoder_config": BigVGanConfig}
 
     def __init__(

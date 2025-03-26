@@ -30,7 +30,7 @@ from torch import nn
 from transformers import FastSpeech2ConformerHifiGan, FastSpeech2ConformerHifiGanConfig, PreTrainedModel
 from transformers.models.fastspeech2_conformer.modeling_fastspeech2_conformer import length_regulator
 
-from ..bigvgan.bigvgan import BigVGAN, BigVGanConfig
+from ..bigvgan.bigvgan import BigVGan, BigVGanConfig
 from ..hifigan.data import dynamic_range_compression_torch
 from .configs import (
     ConditionalFlowMatchingConfig,
@@ -267,7 +267,7 @@ class ConditionalFlowMatchingWithBigVGan(PreTrainedModel):
     def __init__(self, config: ConditionalFlowMatchingWithBigVGanConfig, use_cuda_kernel=False):
         super().__init__(config)
         self.model = ConditionalFlowMatchingModel(config.model_config)
-        self.vocoder = BigVGAN(config.vocoder_config, use_cuda_kernel=use_cuda_kernel)
+        self.vocoder = BigVGan(config.vocoder_config, use_cuda_kernel=use_cuda_kernel)
 
     @classmethod
     def load_pretrained(cls, model_path, vocoder_path) -> "ConditionalFlowMatchingWithBigVGan":
@@ -277,7 +277,7 @@ class ConditionalFlowMatchingWithBigVGan(PreTrainedModel):
 
         model = cls(config)
         model.model = ConditionalFlowMatchingModel.from_pretrained(model_path)
-        model.vocoder = BigVGAN.from_pretrained(vocoder_path)
+        model.vocoder = BigVGan.from_pretrained(vocoder_path)
         return model
 
     def _get_waveform_lengths(self, spectrogram_lengths):
@@ -318,8 +318,6 @@ class ConditionalFlowMatchingWithBigVGan(PreTrainedModel):
         mask = spectrogram.ne(pad_value).all(dim=2)
         spectrogram_lengths = mask.sum(dim=1)
         waveform_lengths = self._get_waveform_lengths(spectrogram_lengths)
-
-        spectrogram = spectrogram.transpose(2, 1)
 
         waveform = self.vocoder(spectrogram)
 

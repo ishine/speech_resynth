@@ -4,10 +4,20 @@ import torch
 import torchaudio
 from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
+from transformers import AutoConfig, AutoModelForTextToWaveform
 
+from .configs import ConditionalFlowMatchingWithBigVGanConfig, ConditionalFlowMatchingWithHifiGanConfig
 from .data import SpeechDataset
 from .models import ConditionalFlowMatchingWithBigVGan, ConditionalFlowMatchingWithHifiGan
 from .utils.textless import load_encoder
+
+# register ConditionalFlowMatchingWithBigVGan
+AutoConfig.register("flow_matching_with_bigvgan", ConditionalFlowMatchingWithBigVGanConfig)
+AutoModelForTextToWaveform.register(ConditionalFlowMatchingWithBigVGanConfig, ConditionalFlowMatchingWithBigVGan)
+
+# register ConditionalFlowMatchingWithHifiGan
+AutoConfig.register("flow_matching_with_hifigan", ConditionalFlowMatchingWithHifiGanConfig)
+AutoModelForTextToWaveform.register(ConditionalFlowMatchingWithHifiGanConfig, ConditionalFlowMatchingWithHifiGan)
 
 
 @torch.inference_mode()
@@ -30,7 +40,7 @@ def synthesize(config):
         config.flow_matching.predict_duration,
     )
 
-    decoder = ConditionalFlowMatchingWithBigVGan.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
+    decoder = AutoModelForTextToWaveform.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
 
     for batch in tqdm(dataloader):
         input_ids = []
