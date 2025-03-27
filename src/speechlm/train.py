@@ -92,7 +92,7 @@ def train(config):
     )
 
     trainset = UnitDataset(
-        config.dataset.train_file,
+        [config.dataset.train_file],
         units_per_sample=config.dataset.units_per_sample,
         num_special_tokens=num_special_tokens,
         eos_token_id=config.model.eos_token_id,
@@ -222,7 +222,7 @@ def train(config):
                 Path(config.model.path).parent.mkdir(parents=True, exist_ok=True)
                 model.module.save_pretrained(config.model.path)
                 torch.save(ckpt, checkpoint_path)
-                torch.save(ckpt, checkpoint_path.with_name(f"{checkpoint_path.name}{global_step:08}"))
+                # torch.save(ckpt, checkpoint_path.with_name(f"{checkpoint_path.name}{global_step:08}"))
 
                 if global_step == config.optim.total_steps:
                     torch.distributed.destroy_process_group()
