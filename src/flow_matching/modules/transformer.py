@@ -29,6 +29,7 @@ import torch.nn.functional as F
 from einops import rearrange
 from torch import nn
 
+from .alibi import get_alibi
 from .fastspeech.modules import FeedForward
 from .norm import AdaptiveRMSNorm
 
@@ -115,12 +116,20 @@ class Attention(nn.Module):
         if mask is not None and mask.ndim != 4:
             mask = mask.unsqueeze(1).unsqueeze(2)
 
-        _, heads, q_len, _ = q.shape
+        bsz, heads, q_len, _ = q.shape
 
         # Check if mask exists and expand to compatible shape
         # The mask is B L, so it would have to be expanded to B H N L
         if mask is not None:
             mask = mask.expand(-1, heads, q_len, -1)
+
+        # alibi = get_alibi(q_len, self.heads, x.device)  # (heads, q_len, q_len)
+        # alibi = alibi.unsqueeze(0).expand(bsz, -1, -1, -1)  # (bsz, heads, q_len, q_len)
+        # if mask is not None:
+        #     mask = mask.masked_fill(~mask, float("-inf"))
+        #     mask = alibi + mask
+        # else:
+        #     mask = alibi
 
         # Check if there is a compatible device for flash attention
         # pytorch 2.0 flash attn: q, k, v, mask, dropout, softmax_scale

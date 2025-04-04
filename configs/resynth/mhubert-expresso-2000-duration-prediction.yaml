@@ -54,11 +54,11 @@ flow_matching:
   depth: 4
   heads: 2
   intermediate_size: 1024
+  attn_dropout: 0.0
   ff_dropout: 0.0
   use_unet_skip_connection: false
   conv_pos_embed_kernel_size: 31
   conv_pos_embed_groups: 256
-  attn_dropout: 0.0
   mean: -5.8843  # mean of log mel-spectrogram
   std: 2.2615  # std of log mel-spectrogram
   predict_duration: true
