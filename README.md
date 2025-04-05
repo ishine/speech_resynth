@@ -13,6 +13,7 @@ sudo apt install git-lfs  # for UTMOS
 conda create -y -n py39 python=3.9.21 pip=24.0
 conda activate py39
 pip install -r requirements/requirements.txt
+pip install flash-attn --no-build-isolation
 
 sh scripts/setup.sh  # download textlesslib and UTMOS
 

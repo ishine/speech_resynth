@@ -7,21 +7,15 @@ import jiwer
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
-from transformers import (
-    AutoConfig,
-    AutoModel,
-    AutoModelForSpeechSeq2Seq,
-    AutoProcessor,
-    FastSpeech2ConformerHifiGan,
-    FastSpeech2ConformerHifiGanConfig,
-    pipeline,
-)
+from transformers import AutoConfig, AutoModel, FastSpeech2ConformerHifiGan, FastSpeech2ConformerHifiGanConfig
 
 from ..bigvgan.bigvgan import BigVGan, BigVGanConfig
 from .configs import ConditionalFlowMatchingConfig
 from .data import UnitDataset
 from .models import ConditionalFlowMatchingModel
-from .utils.misc import cer_transform, fix_random_seed, get_lr_schedule, wer_transform
+from .utils.misc import fix_random_seed, get_lr_schedule
+from .utils.phi.normalizer import EnglishTextNormalizer
+from .utils.phi.run_eval import Phi4MultimodalAudioModel
 from .utils.textless import embedding
 
 sys.path.append("src/utmos")
@@ -42,24 +36,11 @@ AutoModel.register(FastSpeech2ConformerHifiGanConfig, FastSpeech2ConformerHifiGa
 def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int, writer: SummaryWriter):
     model.eval()
 
-    torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-
     vocoder = AutoModel.from_pretrained(config.vocoder.path).cuda()
-    asr = AutoModelForSpeechSeq2Seq.from_pretrained(
-        config.asr.name,
-        torch_dtype=torch_dtype,
-        low_cpu_mem_usage=True,
-        use_safetensors=True,
-        device_map="cuda",
-    )
-    processor = AutoProcessor.from_pretrained(config.asr.name)
-    pipe = pipeline(
-        "automatic-speech-recognition",
-        model=asr,
-        tokenizer=processor.tokenizer,
-        feature_extractor=processor.feature_extractor,
-        torch_dtype=torch_dtype,
-    )
+
+    asr = Phi4MultimodalAudioModel(config.asr.name)
+    normalizer = EnglishTextNormalizer()
+
     scorer = Score(ckpt_path="src/utmos/epoch=3-step=7459.ckpt", input_sample_rate=16000, device="cuda")
 
     hyps = []
@@ -81,8 +62,8 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
         hyp_wav = hyp_wav.cpu().squeeze(0).numpy()
         ref_wav = batch["input_values"].squeeze(0).numpy()
 
-        hyp = pipe(hyp_wav, generate_kwargs={"language": "english"}, return_timestamps=True)["text"]
-        ref = pipe(ref_wav, generate_kwargs={"language": "english"}, return_timestamps=True)["text"]
+        hyp = asr([(hyp_wav, 16000)])[0]
+        ref = asr([(ref_wav, 16000)])[0]
 
         hyps.append(hyp)
         refs.append(ref)
@@ -93,16 +74,20 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
             writer.add_audio(f"hyp/{batch['names'][0]}", hyp_wav, step, 16000)
             writer.add_audio(f"ref/{batch['names'][0]}", ref_wav, step, 16000)
 
-    wer_hyp = jiwer.wer(dataloader.dataset.transcripts, hyps, wer_transform, wer_transform)
-    cer_hyp = jiwer.cer(dataloader.dataset.transcripts, hyps, cer_transform, cer_transform)
+    transcripts = [normalizer(transcript) for transcript in dataloader.dataset.transcripts]
+    hyps = [normalizer(hyp) for hyp in hyps]
+    refs = [normalizer(ref) for ref in refs]
+
+    wer_hyp = jiwer.wer(transcripts, hyps)
+    cer_hyp = jiwer.cer(transcripts, hyps)
     mos_hyp = np.mean(hyp_scores)
 
     writer.add_scalar("dev/WER", wer_hyp, step)
     writer.add_scalar("dev/CER", cer_hyp, step)
     writer.add_scalar("dev/MOS", mos_hyp, step)
 
-    wer_ref = jiwer.wer(dataloader.dataset.transcripts, refs, wer_transform, wer_transform)
-    cer_ref = jiwer.cer(dataloader.dataset.transcripts, refs, cer_transform, cer_transform)
+    wer_ref = jiwer.wer(transcripts, refs)
+    cer_ref = jiwer.cer(transcripts, refs)
     mos_ref = np.mean(ref_scores)
 
     writer.add_scalar("dev/WER (REF)", wer_ref, step)
@@ -110,7 +95,6 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
     writer.add_scalar("dev/MOS (REF)", mos_ref, step)
 
     del vocoder
-    del pipe
     del asr
     del scorer
     torch.cuda.empty_cache()

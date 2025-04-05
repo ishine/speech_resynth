@@ -96,7 +96,7 @@ vocoder:
 
 flow_matching_with_vocoder:
   name: "ryota-komatsu/flow_matching_with_hifigan"
-  batch_size: 32
+  batch_size: 16
 
 asr:
-  name: "openai/whisper-large-v3"
+  name: "microsoft/Phi-4-multimodal-instruct"

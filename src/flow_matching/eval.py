@@ -7,12 +7,13 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
-from transformers import AutoConfig, AutoModelForSpeechSeq2Seq, AutoModelForTextToWaveform, AutoProcessor, pipeline
+from transformers import AutoConfig, AutoModelForTextToWaveform
 
 from .configs import ConditionalFlowMatchingWithBigVGanConfig, ConditionalFlowMatchingWithHifiGanConfig
 from .data import UnitDataset
 from .models import ConditionalFlowMatchingWithBigVGan, ConditionalFlowMatchingWithHifiGan
-from .utils.misc import cer_transform, wer_transform
+from .utils.phi.normalizer import EnglishTextNormalizer
+from .utils.phi.run_eval import Phi4MultimodalAudioModel
 
 sys.path.append("src/utmos")
 warnings.simplefilter("ignore", FutureWarning)
@@ -39,22 +40,8 @@ def evaluate(config):
 
     decoder = AutoModelForTextToWaveform.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
 
-    torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-    asr = AutoModelForSpeechSeq2Seq.from_pretrained(
-        config.asr.name,
-        torch_dtype=torch_dtype,
-        low_cpu_mem_usage=True,
-        use_safetensors=True,
-        device_map="cuda",
-    )
-    processor = AutoProcessor.from_pretrained(config.asr.name)
-    pipe = pipeline(
-        "automatic-speech-recognition",
-        model=asr,
-        tokenizer=processor.tokenizer,
-        feature_extractor=processor.feature_extractor,
-        torch_dtype=torch_dtype,
-    )
+    asr = Phi4MultimodalAudioModel(config.asr.name)
+    normalizer = EnglishTextNormalizer()
 
     scorer = Score(ckpt_path="src/utmos/epoch=3-step=7459.ckpt", input_sample_rate=16000, device="cuda")
 
@@ -78,24 +65,27 @@ def evaluate(config):
             hyp_score = scorer.score(hyp_wav.cuda())
             ref_score = scorer.score(ref_wav.cuda())
 
-            hyp_wavs.append(hyp_wav.cpu().squeeze(0).numpy())
-            ref_wavs.append(ref_wav.cpu().squeeze(0).numpy())
+            hyp_wav = hyp_wav.cpu().squeeze(0).numpy()
+            ref_wav = ref_wav.cpu().squeeze(0).numpy()
+
+            hyp_wavs.append((hyp_wav, 16000))
+            ref_wavs.append((ref_wav, 16000))
             hyp_scores.append(hyp_score)
             ref_scores.append(ref_score)
 
-        batch_hyps = pipe(hyp_wavs, generate_kwargs={"language": "english"}, return_timestamps=True)
-        batch_refs = pipe(ref_wavs, generate_kwargs={"language": "english"}, return_timestamps=True)
+        batch_hyps = asr(hyp_wavs)
+        batch_refs = asr(ref_wavs)
 
-        transcripts += batch["transcripts"]
-        hyps += [hyp["text"] for hyp in batch_hyps]
-        refs += [ref["text"] for ref in batch_refs]
+        transcripts += [normalizer(transcript) for transcript in batch["transcripts"]]
+        hyps += [normalizer(hyp) for hyp in batch_hyps]
+        refs += [normalizer(ref) for ref in batch_refs]
 
-    wer_hyp = jiwer.wer(transcripts, hyps, wer_transform, wer_transform)
-    cer_hyp = jiwer.cer(transcripts, hyps, cer_transform, cer_transform)
+    wer_hyp = jiwer.wer(transcripts, hyps)
+    cer_hyp = jiwer.cer(transcripts, hyps)
     mos_hyp = np.mean(hyp_scores)
 
-    wer_ref = jiwer.wer(transcripts, refs, wer_transform, wer_transform)
-    cer_ref = jiwer.cer(transcripts, refs, cer_transform, cer_transform)
+    wer_ref = jiwer.wer(transcripts, refs)
+    cer_ref = jiwer.cer(transcripts, refs)
     mos_ref = np.mean(ref_scores)
 
     Path(config.eval.result_path).parent.mkdir(parents=True, exist_ok=True)
