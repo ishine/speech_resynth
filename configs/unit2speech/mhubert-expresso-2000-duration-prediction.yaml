@@ -12,9 +12,9 @@ dataset:
 
   # json file format
   # "name": {"units": List[int], "durations": List[int], "transcript": str}
-  train_file: "data/resynth/train.json"  # 354,729 samples
-  dev_file: "data/resynth/dev.json"  # 5,736 samples
-  test_file: "data/resynth/test.json"  # 9,957 samples
+  train_file: "data/resynth/train_deduplicate.json"  # 354,729 samples
+  dev_file: "data/resynth/dev_deduplicate.json"  # 5,736 samples
+  test_file: "data/resynth/test_deduplicate.json"  # 9,957 samples
 
 synthesis:
   src_dir: ${dataset.wav_dir}
@@ -23,12 +23,12 @@ synthesis:
   ext_audio: ${dataset.ext_audio}
 
 eval:
-  result_path: "results/resynth/score.csv"
+  result_path: "results/resynth/score_deduplicate.csv"
 
 flow_matching:
   path: "models/flow_matching"
-  batch_size: 2700 # work with single 24GB VRAM GPU
-  frames_per_seg: 100  # 2 seconds
+  batch_size: 44 # work with single 24GB VRAM GPU
+  frames_per_seg: null  # 2 seconds
   num_workers: 16
   epoch: 100
   warmup_steps: 1000
@@ -53,7 +53,7 @@ flow_matching:
   hidden_size: 256
   depth: 4
   heads: 2
-  intermediate_size: 1024
+  intermediate_size: 768
   attn_dropout: 0.0
   ff_dropout: 0.0
   use_unet_skip_connection: false
@@ -61,7 +61,7 @@ flow_matching:
   conv_pos_embed_groups: 256
   mean: -5.8843  # mean of log mel-spectrogram
   std: 2.2615  # std of log mel-spectrogram
-  predict_duration: false
+  predict_duration: true
 
 vocoder:
   path: "ryota-komatsu/fastspeech2_conformer_hifigan"

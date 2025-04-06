@@ -1,5 +1,5 @@
 --extra-index-url https://download.pytorch.org/whl/cu121
-accelerate==1.4.0
+accelerate==1.6.0
 backoff
 einops==0.8.1
 einx==0.3.0
@@ -7,10 +7,10 @@ fairseq==0.12.2
 fire
 ipykernel==6.29.5
 jiwer @ git+https://github.com/jitsi/jiwer.git@c1b0d5e005431f5ce4fa6797f48639a8ccaa5042
+lightning==2.5.1
 matplotlib==3.8.4
 numpy==1.22.0
 peft
-pytorch-lightning==2.5.0.post0
 scikit-learn==1.4.2
 tensorboard==2.17.0
 torch==2.5.1+cu121

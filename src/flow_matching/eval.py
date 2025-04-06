@@ -7,9 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
-from transformers import AutoConfig, AutoModelForTextToWaveform
 
-from .configs import ConditionalFlowMatchingWithBigVGanConfig, ConditionalFlowMatchingWithHifiGanConfig
 from .data import UnitDataset
 from .models import ConditionalFlowMatchingWithBigVGan, ConditionalFlowMatchingWithHifiGan
 from .utils.phi.normalizer import EnglishTextNormalizer
@@ -19,14 +17,6 @@ sys.path.append("src/utmos")
 warnings.simplefilter("ignore", FutureWarning)
 warnings.simplefilter("ignore", DeprecationWarning)
 from ..utmos.score import Score
-
-# register ConditionalFlowMatchingWithBigVGan
-AutoConfig.register("flow_matching_with_bigvgan", ConditionalFlowMatchingWithBigVGanConfig)
-AutoModelForTextToWaveform.register(ConditionalFlowMatchingWithBigVGanConfig, ConditionalFlowMatchingWithBigVGan)
-
-# register ConditionalFlowMatchingWithHifiGan
-AutoConfig.register("flow_matching_with_hifigan", ConditionalFlowMatchingWithHifiGanConfig)
-AutoModelForTextToWaveform.register(ConditionalFlowMatchingWithHifiGanConfig, ConditionalFlowMatchingWithHifiGan)
 
 
 @torch.inference_mode()
@@ -38,7 +28,7 @@ def evaluate(config):
         collate_fn=UnitDataset.collate_fn,
     )
 
-    decoder = AutoModelForTextToWaveform.from_pretrained(config.flow_matching_with_vocoder.name).cuda()
+    decoder = ConditionalFlowMatchingWithBigVGan.load_pretrained(config.flow_matching.path, config.vocoder.path).cuda()
 
     asr = Phi4MultimodalAudioModel(config.asr.name)
     normalizer = EnglishTextNormalizer()

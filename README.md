@@ -105,7 +105,7 @@ Jupyter notebook demo is found [here](demo.ipynb).
 
 ## Data Preparation
 
-If you already have LibriTTS-R, you can use it by editing [a config file](configs/resynth/mhubert-expresso-2000.yaml#L6);
+If you already have LibriTTS-R, you can use it by editing [a config file](configs/unit2speech/mhubert-expresso-2000.yaml#L6);
 ```yaml
 dataset:
   wav_dir_orig: "/path/to/LibriTTS-R" # ${dataset.wav_dir_orig}/train-clean-100, train-clean-360, ...
@@ -129,7 +129,7 @@ sh scripts/download_slm21.sh  # download sWUGGY and sBLIMP
 ## Training a unit-to-speech synthesizer
 
 ```shell
-python main_resynth.py --config=configs/resynth/mhubert-expresso-2000.yaml
+python main_resynth.py --config=configs/unit2speech/mhubert-expresso-2000.yaml
 ```
 
 To run only a specific stage, pass it as an argument.
@@ -144,7 +144,7 @@ Supported processing stages
 1. synthesize
 
 ```shell
-python main_resynth.py tokenize --config=configs/resynth/mhubert-expresso-2000.yaml
+python main_resynth.py tokenize --config=configs/unit2speech/mhubert-expresso-2000.yaml
 ```
 
 ## Training a speech language model
