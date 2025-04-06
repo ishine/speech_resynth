@@ -264,20 +264,25 @@ class ConditionalFlowMatchingWithHifiGan(PreTrainedModel):
 class ConditionalFlowMatchingWithBigVGan(PreTrainedModel):
     config_class = ConditionalFlowMatchingWithBigVGanConfig
 
-    def __init__(self, config: ConditionalFlowMatchingWithBigVGanConfig, use_cuda_kernel=False):
+    def __init__(self, config: ConditionalFlowMatchingWithBigVGanConfig, use_cuda_kernel: bool = False):
         super().__init__(config)
         self.model = ConditionalFlowMatchingModel(config.model_config)
         self.vocoder = BigVGan(config.vocoder_config, use_cuda_kernel=use_cuda_kernel)
 
     @classmethod
-    def load_pretrained(cls, model_path, vocoder_path) -> "ConditionalFlowMatchingWithBigVGan":
+    def load_pretrained(
+        cls,
+        model_path,
+        vocoder_path,
+        use_cuda_kernel: bool = False,
+    ) -> "ConditionalFlowMatchingWithBigVGan":
         model_config = ConditionalFlowMatchingConfig.from_pretrained(model_path)
         vocoder_config = BigVGanConfig.from_pretrained(vocoder_path)
         config = ConditionalFlowMatchingWithBigVGanConfig(model_config.to_dict(), vocoder_config.to_dict())
 
         model = cls(config)
         model.model = ConditionalFlowMatchingModel.from_pretrained(model_path)
-        model.vocoder = BigVGan.from_pretrained(vocoder_path)
+        model.vocoder = BigVGan.from_pretrained(vocoder_path, use_cuda_kernel=use_cuda_kernel)
         return model
 
     def _get_waveform_lengths(self, spectrogram_lengths):

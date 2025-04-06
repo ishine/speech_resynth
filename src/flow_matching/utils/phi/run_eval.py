@@ -5,6 +5,7 @@ from typing import List, Tuple
 import numpy as np
 import torch
 from transformers import AutoModelForCausalLM, AutoProcessor, StoppingCriteria, StoppingCriteriaList
+from transformers.utils import is_flash_attn_2_available
 
 torch.set_float32_matmul_precision("high")
 
@@ -46,7 +47,7 @@ class Phi4MultimodalAudioModel:
             name_or_path,
             trust_remote_code=True,
             torch_dtype="auto",
-            _attn_implementation="flash_attention_2",
+            _attn_implementation="flash_attention_2" if is_flash_attn_2_available() else "sdpa",
             device_map="cuda",
         )
         self.processor = AutoProcessor.from_pretrained(name_or_path, trust_remote_code=True)
