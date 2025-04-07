@@ -43,7 +43,7 @@ def resample(config):
 def tokenize(config):
     trainset = LibriTTS_R(config.dataset.wav_dir, split="train-*")
     devset = LibriTTS_R(config.dataset.wav_dir, config.dataset.wav_dir_orig, split="dev-clean")
-    testset = LibriTTS_R(config.dataset.wav_dir, config.dataset.wav_dir_orig, split="test-*")
+    testset = LibriTTS_R(config.dataset.wav_dir, config.dataset.wav_dir_orig, split="test-clean")
 
     train_loader = torch.utils.data.DataLoader(trainset)
     dev_loader = torch.utils.data.DataLoader(devset)

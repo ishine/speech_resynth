@@ -70,16 +70,16 @@ def evaluate(config):
         hyps += [normalizer(hyp) for hyp in batch_hyps]
         refs += [normalizer(ref) for ref in batch_refs]
 
-    wer_hyp = jiwer.wer(transcripts, hyps)
-    cer_hyp = jiwer.cer(transcripts, hyps)
+    wer_hyp = jiwer.wer(transcripts, hyps) * 100
+    cer_hyp = jiwer.cer(transcripts, hyps) * 100
     mos_hyp = np.mean(hyp_scores)
 
-    wer_ref = jiwer.wer(transcripts, refs)
-    cer_ref = jiwer.cer(transcripts, refs)
+    wer_ref = jiwer.wer(transcripts, refs) * 100
+    cer_ref = jiwer.cer(transcripts, refs) * 100
     mos_ref = np.mean(ref_scores)
 
     Path(config.eval.result_path).parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(
         [wer_hyp, cer_hyp, mos_hyp, wer_ref, cer_ref, mos_ref],
         index=["WER (hyp)", "CER (hyp)", "MOS (hyp)", "WER (ref)", "CER (ref)", "MOS (ref)"],
-    ).to_csv(config.eval.result_path)
+    ).to_csv(config.eval.result_path, float_format="%.2f")

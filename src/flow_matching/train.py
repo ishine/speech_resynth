@@ -78,16 +78,16 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
     hyps = [normalizer(hyp) for hyp in hyps]
     refs = [normalizer(ref) for ref in refs]
 
-    wer_hyp = jiwer.wer(transcripts, hyps)
-    cer_hyp = jiwer.cer(transcripts, hyps)
+    wer_hyp = jiwer.wer(transcripts, hyps) * 100
+    cer_hyp = jiwer.cer(transcripts, hyps) * 100
     mos_hyp = np.mean(hyp_scores)
 
     writer.add_scalar("dev/WER", wer_hyp, step)
     writer.add_scalar("dev/CER", cer_hyp, step)
     writer.add_scalar("dev/MOS", mos_hyp, step)
 
-    wer_ref = jiwer.wer(transcripts, refs)
-    cer_ref = jiwer.cer(transcripts, refs)
+    wer_ref = jiwer.wer(transcripts, refs) * 100
+    cer_ref = jiwer.cer(transcripts, refs) * 100
     mos_ref = np.mean(ref_scores)
 
     writer.add_scalar("dev/WER (REF)", wer_ref, step)

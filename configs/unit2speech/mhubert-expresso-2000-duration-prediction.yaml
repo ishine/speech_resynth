@@ -14,7 +14,7 @@ dataset:
   # "name": {"units": List[int], "durations": List[int], "transcript": str}
   train_file: "data/resynth/train_deduplicate.json"  # 354,729 samples
   dev_file: "data/resynth/dev_deduplicate.json"  # 5,736 samples
-  test_file: "data/resynth/test_deduplicate.json"  # 9,957 samples
+  test_file: "data/resynth/test_deduplicate.json"  # 4,837 samples
 
 synthesis:
   src_dir: ${dataset.wav_dir}
@@ -96,7 +96,7 @@ vocoder:
 
 flow_matching_with_vocoder:
   name: "ryota-komatsu/flow_matching_with_hifigan"
-  batch_size: 16
+  batch_size: 8
 
 asr:
   name: "microsoft/Phi-4-multimodal-instruct"
