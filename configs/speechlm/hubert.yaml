@@ -15,13 +15,13 @@ dataset:
   result_dir: "results/speechlm/hubert"
 
 dataloader:
-  batch_size_per_device: 320  # effective batch size (tokens) = dataset.units_per_sample * batch_size_per_device * #GPUs
+  batch_size_per_device: 960  # effective batch size (tokens) = dataset.units_per_sample * batch_size_per_device * #GPUs
 
 model:
   path: "models/speechlm/hubert"
-  vocab_size: 16384  # BPE vocab size
+  vocab_size: 8192  # BPE vocab size
   hidden_size: 768
-  intermediate_size: 3072
+  intermediate_size: 2048  # 4 * hidden_size * 2 / 3
   num_hidden_layers: 12
   num_attention_heads: 12
   pad_token_id: 0
@@ -29,16 +29,16 @@ model:
   eos_token_id: 1  # for generation stopping criteria
 
 optim:
-  epoch: 31
+  epoch: 23
   warmup_steps: 100
-  lr: 0.0002
-  lr_min: 0.00002
+  lr: 0.0005
+  lr_min: 0.00005
   beta1: 0.9
   beta2: 0.98
   max_norm: 1.0
   summary_interval: 100
   validation_save_interval: 10000
-  total_steps: 400000
+  total_steps: 200000
 
 s2u:
   dense_model_name: "hubert-base-ls960"

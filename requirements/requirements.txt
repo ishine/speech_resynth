@@ -16,5 +16,5 @@ tensorboard==2.17.0
 torch==2.5.1+cu121
 torchaudio==2.5.1+cu121
 torchvision==0.20.1+cu121
-transformers==4.51.0
+transformers==4.51.2
 zerospeech-benchmarks==0.9.4
