@@ -118,8 +118,11 @@ def train(config):
             pad_token_id=config.model.pad_token_id,
             bos_token_id=config.model.bos_token_id,
             eos_token_id=config.model.eos_token_id,
+            tie_word_embeddings=config.model.tie_word_embeddings,
         )
-    ).to(device_id)
+    )
+    model.tie_weights()
+    model.to(device_id)
     model = DDP(model, device_ids=[device_id])
 
     optimizer = torch.optim.AdamW(model.parameters(), config.optim.lr, (config.optim.beta1, config.optim.beta2))
@@ -207,8 +210,6 @@ def train(config):
                 writer.add_scalar("memory/reserved (GB)", torch.cuda.max_memory_reserved() / 2**30, global_step)
 
             if rank == 0 and global_step % config.optim.validation_save_interval == 0:
-                validate(config, model, global_step, writer, num_special_tokens)
-
                 # save model
                 ckpt = {
                     "epoch": epoch,
@@ -223,6 +224,8 @@ def train(config):
                 model.module.save_pretrained(config.model.path)
                 torch.save(ckpt, checkpoint_path)
                 torch.save(ckpt, checkpoint_path.with_name(f"{checkpoint_path.name}{global_step:08}"))
+
+                validate(config, model, global_step, writer, num_special_tokens)
 
                 if global_step == config.optim.total_steps:
                     torch.distributed.destroy_process_group()

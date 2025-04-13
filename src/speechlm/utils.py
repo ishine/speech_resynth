@@ -72,3 +72,11 @@ def get_lr_schedule(
             return (min_lr + (base_lr - min_lr) * (1 - progress)) / base_lr
 
     return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_schedule)
+
+
+def get_num_non_embed_params(model):
+    total = 0
+    for name, param in model.named_parameters():
+        if param.requires_grad and "embed_tokens" not in name and "lm_head" not in name:
+            total += param.numel()
+    return total / 1e6  # million

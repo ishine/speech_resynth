@@ -15,7 +15,7 @@ dataset:
   result_dir: "results/speechlm/hubert"
 
 dataloader:
-  batch_size_per_device: 960  # effective batch size (tokens) = dataset.units_per_sample * batch_size_per_device * #GPUs
+  batch_size_per_device: 1000  # effective batch size (tokens) = dataset.units_per_sample * batch_size_per_device * #GPUs
 
 model:
   path: "models/speechlm/hubert"
@@ -27,15 +27,16 @@ model:
   pad_token_id: 0
   bos_token_id: null
   eos_token_id: 1  # for generation stopping criteria
+  tie_word_embeddings: true
 
 optim:
-  epoch: 23
+  epoch: 24
   warmup_steps: 100
   lr: 0.0005
   lr_min: 0.00005
   beta1: 0.9
   beta2: 0.98
-  max_norm: 1.0
+  max_norm: 0.1
   summary_interval: 100
   validation_save_interval: 10000
   total_steps: 200000
