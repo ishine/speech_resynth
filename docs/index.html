@@ -36,7 +36,7 @@
 
 <div class="container float-div">
     <div class="text-center">
-        <h3>Speech Resynthesis and Language Modeling Using Flow Matching and Llama</h3>
+        <h3>Comparison of resynthesized speech between phonetic tokens and acoustic tokens</h3>
         <h6>
             [<a href="https://github.com/ryota-komatsu/speech_resynth" , target='_blank'>Code</a>]
             [<a href="https://huggingface.co/ryota-komatsu/flow_matching_with_bigvgan" , target='_blank'>Model</a>]
@@ -60,45 +60,28 @@
             <thead>
                 <tr>
                     <th style="text-align: center; vertical-align: top" rowspan="2">Original</th>
-                    <th style="text-align: center" colspan="2">Resynthesis</th>
+                    <th style="text-align: center; vertical-align: top" rowspan="2">Acoustic token</th>
+                    <th style="text-align: center" colspan="2">Phonetic token</th>
                 </tr>
                 <tr>
-                    <th style="text-align: center">#1</th>
-                    <th style="text-align: center">#2</th>
+                    <th style="text-align: center">sampling #1</th>
+                    <th style="text-align: center">sampling #2</th>
                 </tr>
             </thead>
             <tbody>
 
                 <tr>
-                    <td><audio controls controlslist="nodownload" src='audio/121_121726_000004_000003.wav'></audio></td>
-                    <td><audio controls controlslist="nodownload" src='audio/121_121726_000004_000003_1.wav'></audio>
-                    </td>
-                    <td><audio controls controlslist="nodownload" src='audio/121_121726_000004_000003_2.wav'></audio>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td><audio controls controlslist="nodownload" src='audio/237_126133_000002_000003.wav'></audio></td>
-                    <td><audio controls controlslist="nodownload" src='audio/237_126133_000002_000003_1.wav'></audio>
-                    </td>
-                    <td><audio controls controlslist="nodownload" src='audio/237_126133_000002_000003_2.wav'></audio>
-                    </td>
-                </tr>
-
-                <tr>
                     <td><audio controls controlslist="nodownload" src='audio/260_123288_000003_000001.wav'></audio></td>
-                    <td><audio controls controlslist="nodownload" src='audio/260_123288_000003_000001_1.wav'></audio>
-                    </td>
-                    <td><audio controls controlslist="nodownload" src='audio/260_123288_000003_000001_2.wav'></audio>
-                    </td>
+                    <td><audio controls controlslist="nodownload" src='audio/260_123288_000003_000001_dac.wav'></audio></td>
+                    <td><audio controls controlslist="nodownload" src='audio/260_123288_000003_000001_1.wav'></audio></td>
+                    <td><audio controls controlslist="nodownload" src='audio/260_123288_000003_000001_2.wav'></audio></td>
                 </tr>
 
                 <tr>
                     <td><audio controls controlslist="nodownload" src='audio/672_122797_000002_000002.wav'></audio></td>
-                    <td><audio controls controlslist="nodownload" src='audio/672_122797_000002_000002_1.wav'></audio>
-                    </td>
-                    <td><audio controls controlslist="nodownload" src='audio/672_122797_000002_000002_2.wav'></audio>
-                    </td>
+                    <td><audio controls controlslist="nodownload" src='audio/672_122797_000002_000002_dac.wav'></audio></td>
+                    <td><audio controls controlslist="nodownload" src='audio/672_122797_000002_000002_1.wav'></audio></td>
+                    <td><audio controls controlslist="nodownload" src='audio/672_122797_000002_000002_2.wav'></audio></td>
                 </tr>
 
             </tbody>
@@ -123,6 +106,7 @@
         <li>M. Le, A. Vyas, B. Shi, B. Karrer, L. Sari, R. Moritz, M. Williamson, V. Manohar, Y. Adi, J. Mahadeokar, and W.-N. Hsu, "Voicebox: Text-guided multilingual universal speech generation at scale," in Proc. Thirty-seventh Conference on Neural Information Processing Systems, vol. 36, 2023, pp. 14005–14034.</li>
         <li>S. gil Lee, W. Ping, B. Ginsburg, B. Catanzaro, and S. Yoon, "BigVGAN: A universal neural vocoder with large-scale training," in Proc. International Conference on Learning Representations, 2023.</li>
         <li>T. A. Nguyen, W.-N. Hsu, A. D’Avirro, B. Shi, I. Gat, M. Fazel-Zarani, T. Remez, J. Copet, G. Synnaeve, M. Hassid, F. Kreuk, Y. Adi, and E. Dupoux, "Expresso: A benchmark and analysis of discrete expressive speech resynthesis," in Proc. Interspeech, 2023, pp. 4823–4827.</li>
+        <li>R. Kumar, P. Seetharaman, A. Luebs, I. Kumar, and K. Kumar, "High-Fidelity Audio Compression with Improved RVQGAN," in Proc. NeurIPS, 2023, pp. 27980-27993.</li>
     </ol>
 </div>
 
