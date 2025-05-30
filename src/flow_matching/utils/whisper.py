@@ -13,15 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import math
-from pathlib import Path
 from typing import Optional
 
 import faiss
 import numpy as np
 import torch
 import transformers
+from datasets import Dataset, DatasetDict
 from torch import nn
 from tqdm import tqdm
 from transformers import WhisperConfig
@@ -29,6 +28,7 @@ from transformers.audio_utils import spectrogram, window_function
 from transformers.modeling_outputs import BaseModelOutput
 from transformers.models.whisper.modeling_whisper import WhisperDecoder, WhisperEncoderLayer, WhisperPreTrainedModel
 
+from ...bigvgan.data import mel_spectrogram
 from ..data import LibriTTS_R
 
 
@@ -104,7 +104,7 @@ class WhisperEncoder(WhisperPreTrainedModel):
         config: WhisperConfig
     """
 
-    def __init__(self, config: WhisperConfig, quantizer: Optional[torch.Tensor] = None):
+    def __init__(self, config: WhisperConfig):
         super().__init__(config)
         self.dropout = config.dropout
         self.layerdrop = config.encoder_layerdrop
@@ -128,7 +128,7 @@ class WhisperEncoder(WhisperPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-        self.register_buffer("quantizer", quantizer)
+        self.register_buffer("quantizer", torch.zeros(config.codebook_size, config.d_model))
 
     def _freeze_parameters(self):
         for param in self.parameters():
@@ -187,10 +187,10 @@ class WhisperEncoder(WhisperPreTrainedModel):
 
 
 class WhisperModel(WhisperPreTrainedModel):
-    def __init__(self, config: WhisperConfig, quantizer: Optional[torch.Tensor] = None):
+    def __init__(self, config: WhisperConfig):
         super().__init__(config)
 
-        self.encoder = WhisperEncoder(config, quantizer)
+        self.encoder = WhisperEncoder(config)
         self.decoder = WhisperDecoder(config)
         # Initialize weights and apply final processing
         self.post_init()
@@ -201,12 +201,14 @@ class WhisperModel(WhisperPreTrainedModel):
 def train_quantizer(
     data_dir="data/LibriTTS_R_16k",
     quantizer_path="models/quantizer.pt",
-    n_clusters: int = 4096,
+    codebook_size: int = 4096,
     model_id="openai/whisper-large-v3",
 ):
     # load model and processor
     feature_extractor = WhisperFeatureExtractor.from_pretrained(model_id)
-    model = WhisperModel.from_pretrained(model_id, torch_dtype=torch.float16).encoder.cuda()
+    config = WhisperConfig.from_pretrained(model_id)
+    config.codebook_size = codebook_size
+    model = WhisperModel.from_pretrained(model_id, config=config, torch_dtype=torch.float16).encoder.cuda()
 
     # load dataset
     dataset = LibriTTS_R(data_dir, split="train-clean-100")
@@ -239,7 +241,7 @@ def train_quantizer(
 
     quantizer = faiss.Kmeans(
         hidden_states.shape[1],
-        n_clusters,
+        codebook_size,
         niter=100,
         nredo=5,
         verbose=True,
@@ -256,12 +258,17 @@ def encode(
     data_dir="data/LibriTTS_R_16k",
     quantizer_path="models/quantizer.pt",
     model_id="openai/whisper-large-v3",
-    train_file="data/train.json",
-    dev_file="data/dev.json",
 ):
     # load model and processor
     feature_extractor = WhisperFeatureExtractor.from_pretrained(model_id)
-    model = WhisperModel.from_pretrained(model_id, quantizer=torch.load(quantizer_path)).encoder.cuda()
+
+    quantizer = torch.load(quantizer_path)
+
+    config = WhisperConfig.from_pretrained(model_id)
+    config.codebook_size = quantizer.shape[0]
+
+    model = WhisperModel.from_pretrained(model_id, config=config, torch_dtype=torch.float16).encoder.cuda()
+    model.quantizer = quantizer
 
     trainset = LibriTTS_R(data_dir, split="train-*")
     devset = LibriTTS_R(data_dir, split="dev-clean")
@@ -269,12 +276,15 @@ def encode(
     train_loader = torch.utils.data.DataLoader(trainset)
     dev_loader = torch.utils.data.DataLoader(devset)
 
-    _encode(feature_extractor, model, train_file, train_loader)
-    _encode(feature_extractor, model, dev_file, dev_loader)
+    trainset = _encode(feature_extractor, model, train_loader)
+    devset = _encode(feature_extractor, model, dev_loader)
+
+    dataset = DatasetDict({"train": trainset, "dev": devset})
+    dataset.push_to_hub("LibriTTS-R-whisper-large-v3")
 
 
-def _encode(feature_extractor, model, file, dataloader: torch.utils.data.DataLoader):
-    dataset = dict()
+def _encode(feature_extractor, model, dataloader: torch.utils.data.DataLoader):
+    dataset = []
 
     for item in tqdm(dataloader):
         input_features = feature_extractor(
@@ -285,16 +295,20 @@ def _encode(feature_extractor, model, file, dataloader: torch.utils.data.DataLoa
             padding="do_not_pad",
         ).input_features.to("cuda")
 
+        # spectrogram_labels = mel_spectrogram(item["input_values"].squeeze(0), center=True)  # (80, len)
+        # spectrogram_labels = spectrogram_labels.transpose(0, 1)  # (len, 80)
+        # spectrogram_labels = spectrogram_labels.cpu()
+
         try:
             units = model.encode(
                 input_features,
                 out_layer=model.config.encoder_layers // 2 - 1,
             ).tolist()
 
-            dataset[item["name"][0]] = {"units": units, "transcript": item["transcript"][0]}
+            item = {"id": item["name"][0], "units": units, "transcript": item["transcript"][0]}
+            dataset.append(item)
         except:
             pass
 
-    Path(file).parent.mkdir(parents=True, exist_ok=True)
-    with open(file, "w") as f:
-        json.dump(dataset, f)
+    dataset = Dataset.from_list(dataset)
+    return dataset
