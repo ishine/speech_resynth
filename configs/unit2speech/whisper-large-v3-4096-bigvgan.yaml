@@ -2,19 +2,13 @@ common:
   seed: 0
 
 dataset:
+  name: "ryota-komatsu/LibriTTS-R-whisper-large-v3-4096units"  # https://huggingface.co/datasets
   wav_dir: "data/LibriTTS_R_16k" # ${root}/train-clean-100, train-clean-360, ...
   wav_dir_orig: "data/LibriTTS_R"  # if wav_dir == wav_dir_orig, original wav files are overwritten with 16 kHz waveforms
-  spectrogram_dir: "data/LibriTTS_R_16k/spectrogram"  # 34GB
   vad: false
 
   ext_audio: ".wav"
   ext_txt: ".normalized.txt"
-
-  # json file format
-  # "name": {"units": List[int], "durations": List[int], "transcript": str}
-  train_file: "data/resynth/train.json"  # 354,729 samples
-  dev_file: "data/resynth/dev.json"  # 5,736 samples
-  test_file: "data/resynth/test.json"  # 4,837 samples
 
 synthesis:
   src_dir: ${dataset.wav_dir}
@@ -39,17 +33,14 @@ flow_matching:
   save_interval_epoch: 20
 
   # inference
-  dt: 0.0625
-  truncation_value: 1.0  # truncation trick (https://arxiv.org/abs/1809.11096)
+  dt: 0.1
+  truncation_value: null  # truncation trick (https://arxiv.org/abs/1809.11096)
 
-  # textless.data.speech_encoder.SpeechEncoder
-  dense_model_name: "mhubert-base-vp_mls_cv_8lang"
-  quantizer_model_name: "kmeans-expresso"
-  vocab_size: 2000
+  vocab_size: ${tokenizer.vocab_size}
 
   # src.flow_matching.configs.ConditionalFlowMatchingConfig
   dim_in: 80
-  dim_cond_emb: 768
+  dim_cond_emb: 1280
   hidden_size: 256
   depth: 4
   heads: 2
@@ -113,9 +104,14 @@ vocoder:
   checkpoint_interval: 10000
   validation_interval: 10000
 
+tokenizer:
+  name: "ryota-komatsu/whisper-large-v3-tokenizer"
+  vocab_size: 4096
+  out_layer: 15
+
 flow_matching_with_vocoder:
   name: "ryota-komatsu/flow_matching_with_bigvgan"
   batch_size: 8
 
 asr:
-  name: "microsoft/Phi-4-multimodal-instruct"
+  name: "openai/whisper-large-v3"

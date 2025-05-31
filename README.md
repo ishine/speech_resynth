@@ -1,44 +1,36 @@
 # Speech Resynthesis and Language Modeling with Flow Matching and Llama
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org)
+[![Python](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org)
 [![model](https://img.shields.io/badge/%F0%9F%A4%97-Models-blue)](https://huggingface.co/ryota-komatsu/flow_matching_with_bigvgan)
-[![dataset](https://img.shields.io/badge/%F0%9F%A4%97-Datasets-blue)](https://huggingface.co/datasets/ryota-komatsu/libritts-r-mhubert-2000units)
+[![dataset](https://img.shields.io/badge/%F0%9F%A4%97-Datasets-blue)](https://huggingface.co/datasets/ryota-komatsu/LibriTTS-R-whisper-large-v3-4096units)
 
 ## Setup
 
 ```shell
 sudo apt install git-lfs  # for UTMOS
 
-conda create -y -n py39 python=3.9.21 pip=24.0
-conda activate py39
-pip install -r requirements/requirements.txt
+conda create -y -n py310 -c pytorch -c nvidia -c conda-forge python=3.10.17 pip=24.0 faiss-gpu=1.10.0
+conda activate py310
+pip install -r requirements.txt
 pip install flash-attn --no-build-isolation  # optional
 
-sh scripts/setup.sh  # download textlesslib and UTMOS
-
-cd src/textlesslib
-pip install -e .
-cd -
+sh scripts/setup.sh  # download UTMOS
 ```
 
-## Usage: sampling multi-speaker speech from self-supervised discrete units
+## Usage: sampling multi-speaker speech from supervised discrete units
 
 ```python
 import torchaudio
-from textless.data.speech_encoder import SpeechEncoder
 
 from src.flow_matching.models import ConditionalFlowMatchingWithBigVGan
+from src.flow_matching.utils.whisper import WhisperFeatureExtractor, WhisperEncoder
 
 wav_path = "/path/to/wav"
 
-encoder = SpeechEncoder.by_name(
-    dense_model_name="mhubert-base-vp_mls_cv_8lang",
-    quantizer_model_name="kmeans-expresso",
-    vocab_size=2000,
-    deduplicate=False,
-    need_f0=False,
-).cuda()
+# load model and processor
+feature_extractor = WhisperFeatureExtractor.from_pretrained("ryota-komatsu/whisper-large-v3-tokenizer")
+encoder = WhisperEncoder.from_pretrained("ryota-komatsu/whisper-large-v3-tokenizer").cuda()
 
 # download a pretrained model from hugging face hub
 decoder = ConditionalFlowMatchingWithBigVGan.from_pretrained("ryota-komatsu/flow_matching_with_bigvgan").cuda()
@@ -47,8 +39,16 @@ decoder = ConditionalFlowMatchingWithBigVGan.from_pretrained("ryota-komatsu/flow
 waveform, sr = torchaudio.load(wav_path)
 waveform = torchaudio.functional.resample(waveform, sr, 16000)
 
+input_features = feature_extractor(
+    waveform.squeeze(0).numpy(),
+    return_tensors="pt",
+    sampling_rate=16000,
+    device="cuda",
+    padding="do_not_pad",
+).input_features.to("cuda")
+
 # encode a waveform into pseudo-phonetic units
-units = encoder(waveform.cuda())["units"]
+units = encoder(input_features, out_layer=15)
 units = units.unsqueeze(0) + 1  # 0: pad
 
 # resynthesis
@@ -60,21 +60,17 @@ audio_values = decoder(units)
 ```python
 import torch
 import torchaudio
-from textless.data.speech_encoder import SpeechEncoder
 from tokenizers import Tokenizer
 from transformers import LlamaForCausalLM
 
+from src.flow_matching.utils.whisper import WhisperFeatureExtractor, WhisperEncoder
 from src.speechlm.utils import convert_units_to_unicode
 
 wav_path = "/path/to/wav"
 
-encoder = SpeechEncoder.by_name(
-    dense_model_name="hubert-base-ls960",
-    quantizer_model_name="kmeans",
-    vocab_size=100,
-    deduplicate=True,
-    need_f0=False,
-).cuda()
+# load model and processor
+feature_extractor = WhisperFeatureExtractor.from_pretrained("ryota-komatsu/whisper-large-v3-tokenizer")
+encoder = WhisperEncoder.from_pretrained("ryota-komatsu/whisper-large-v3-tokenizer").cuda()
 
 # BPE tokenizer
 tokenizer = Tokenizer.from_file("/path/to/pretrained/tokenizer.json")
@@ -85,8 +81,16 @@ model = LlamaForCausalLM.from_pretrained("/path/to/pretrained/model").cuda()
 waveform, sr = torchaudio.load(wav_path)
 waveform = torchaudio.functional.resample(waveform, sr, 16000)
 
+input_features = feature_extractor(
+    waveform.squeeze(0).numpy(),
+    return_tensors="pt",
+    sampling_rate=16000,
+    device="cuda",
+    padding="do_not_pad",
+).input_features.to("cuda")
+
 # encode a waveform into pseudo-phonetic units
-units = encoder(waveform.cuda())["units"].tolist()
+units = encoder(input_features, out_layer=15).tolist()
 unicodes = convert_units_to_unicode(units)
 
 # BPE
@@ -105,7 +109,7 @@ Jupyter notebook demo is found [here](demo.ipynb).
 
 ## Data Preparation
 
-If you already have LibriTTS-R, you can use it by editing [a config file](configs/unit2speech/mhubert-expresso-2000.yaml#L6);
+If you already have LibriTTS-R, you can use it by editing [a config file](configs/unit2speech/whisper-large-v3-4096-bigvgan.yaml#L7);
 ```yaml
 dataset:
   wav_dir_orig: "/path/to/LibriTTS-R" # ${dataset.wav_dir_orig}/train-clean-100, train-clean-360, ...
@@ -128,23 +132,15 @@ sh scripts/download_slm21.sh  # download sWUGGY and sBLIMP
 
 ## Training a unit-to-speech synthesizer
 
-```shell
-python main_resynth.py --config=configs/unit2speech/mhubert-expresso-2000.yaml
-```
-
 To run only a specific stage, pass it as an argument.
 
 Supported processing stages
 1. resample
-1. tokenize
-1. extract_features
-1. train_bigvgan  # can be skipped when using a pretrained model
 1. train_flow_matching
-1. evaluate
 1. synthesize
 
 ```shell
-python main_resynth.py tokenize --config=configs/unit2speech/mhubert-expresso-2000.yaml
+python main_resynth.py train_flow_matching --config=configs/unit2speech/whisper-large-v3-4096-bigvgan.yaml
 ```
 
 ## Training a speech language model
@@ -159,7 +155,7 @@ torchrun \
     --rdzv_backend=c10d \
     --rdzv_endpoint=localhost:29400 \
     main_speechlm.py \
-    --config=configs/speechlm/hubert.yaml
+    --config=configs/speechlm/whisper.yaml
 ```
 
 To run only a sub-task (encode, tokenize, or train), specify it as an argument.
@@ -172,7 +168,7 @@ torchrun \
     --rdzv_backend=c10d \
     --rdzv_endpoint=localhost:29400 \
     main_speechlm.py encode \
-    --config=configs/speechlm/hubert.yaml
+    --config=configs/speechlm/whisper.yaml
 ```
 
 ## Evaluation of a speech language model
@@ -180,5 +176,5 @@ torchrun \
 See [Zero Resource Speech homepage](https://zerospeech.com/tasks/task_4/tasks_goals/) and [paper](https://arxiv.org/abs/2011.11588) for task details.
 
 ```shell
-python main_speechlm.py eval --config=configs/speechlm/hubert.yaml
+python main_speechlm.py eval --config=configs/speechlm/whisper.yaml
 ```

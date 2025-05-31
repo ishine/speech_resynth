@@ -3,12 +3,12 @@ import json
 from pathlib import Path
 
 import torch
-from textless.data.speech_encoder import SpeechEncoder
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from tokenizers.trainers import BpeTrainer
 from tqdm import tqdm
 
+from ..flow_matching.utils.whisper import WhisperEncoder, WhisperFeatureExtractor
 from .data import SpeechDataset
 from .utils import convert_units_to_unicode, shift_unit
 
@@ -56,23 +56,20 @@ def tokenize_slm21(config):
     swuggy_test_loader = torch.utils.data.DataLoader(swuggy_test_set)
     sblimp_test_loader = torch.utils.data.DataLoader(sblimp_test_set)
 
-    encoder = SpeechEncoder.by_name(
-        dense_model_name=config.s2u.dense_model_name,
-        quantizer_model_name=config.s2u.quantizer_model_name,
-        vocab_size=config.s2u.vocab_size,
-        deduplicate=True,
-        need_f0=False,
-    ).cuda()
+    # load model and processor
+    feature_extractor = WhisperFeatureExtractor.from_pretrained(config.s2u.name)
+    encoder = WhisperEncoder.from_pretrained(config.s2u.name).cuda()
     tokenizer = Tokenizer.from_file(config.s2u.tokenizer_path)
 
-    _tokenize_slm21(encoder, tokenizer, config.dataset.swuggy_dev_file, swuggy_dev_loader)
-    _tokenize_slm21(encoder, tokenizer, config.dataset.sblimp_dev_file, sblimp_dev_loader)
-    _tokenize_slm21(encoder, tokenizer, config.dataset.swuggy_test_file, swuggy_test_loader)
-    _tokenize_slm21(encoder, tokenizer, config.dataset.sblimp_test_file, sblimp_test_loader)
+    _tokenize_slm21(feature_extractor, encoder, tokenizer, config.dataset.swuggy_dev_file, swuggy_dev_loader)
+    _tokenize_slm21(feature_extractor, encoder, tokenizer, config.dataset.sblimp_dev_file, sblimp_dev_loader)
+    _tokenize_slm21(feature_extractor, encoder, tokenizer, config.dataset.swuggy_test_file, swuggy_test_loader)
+    _tokenize_slm21(feature_extractor, encoder, tokenizer, config.dataset.sblimp_test_file, sblimp_test_loader)
 
 
 def _tokenize_slm21(
-    encoder: SpeechEncoder,
+    feature_extractor: WhisperFeatureExtractor,
+    encoder: WhisperEncoder,
     tokenizer: Tokenizer,
     file,
     data_loader: torch.utils.data.DataLoader,
@@ -82,8 +79,15 @@ def _tokenize_slm21(
     dataset = dict()
 
     for item in tqdm(data_loader):
-        outputs = encoder(item["input_values"].cuda())
-        unicodes = convert_units_to_unicode(outputs["units"].tolist())
+        input_features = feature_extractor(
+            item["input_values"].squeeze(0).numpy(),
+            return_tensors="pt",
+            sampling_rate=16000,
+            device="cuda",
+            padding="do_not_pad",
+        ).input_features.to("cuda")
+        units = encoder(input_features, out_layer=15).tolist()
+        unicodes = convert_units_to_unicode(units)
         input_ids = tokenizer.encode(unicodes).ids
 
         dataset[item["name"][0]] = input_ids
@@ -98,23 +102,30 @@ def encode(config, spk_ids: str = "1-9"):
     train_set = SpeechDataset(train_paths)
     train_loader = torch.utils.data.DataLoader(train_set, num_workers=config.s2u.num_workers)
 
-    encoder = SpeechEncoder.by_name(
-        dense_model_name=config.s2u.dense_model_name,
-        quantizer_model_name=config.s2u.quantizer_model_name,
-        vocab_size=config.s2u.vocab_size,
-        deduplicate=True,
-        need_f0=False,
-    ).cuda()
+    feature_extractor = WhisperFeatureExtractor.from_pretrained(config.s2u.name)
+    encoder = WhisperEncoder.from_pretrained(config.s2u.name).cuda()
 
-    _encode(encoder, config.dataset.unicode_train + f"{spk_ids}", train_loader)
+    _encode(feature_extractor, encoder, config.dataset.unicode_train + f"{spk_ids}", train_loader)
 
 
-def _encode(encoder: SpeechEncoder, file, data_loader: torch.utils.data.DataLoader):
+def _encode(
+    feature_extractor: WhisperFeatureExtractor,
+    encoder: WhisperEncoder,
+    file,
+    data_loader: torch.utils.data.DataLoader,
+):
     Path(file).parent.mkdir(parents=True, exist_ok=True)
     with open(file, "w") as f:
         for item in tqdm(data_loader):
-            outputs = encoder(item["input_values"].cuda())
+            input_features = feature_extractor(
+                item["input_values"].squeeze(0).numpy(),
+                return_tensors="pt",
+                sampling_rate=16000,
+                device="cuda",
+                padding="do_not_pad",
+            ).input_features.to("cuda")
+            units = encoder(input_features, out_layer=15).tolist()
 
-            unicodes = convert_units_to_unicode(outputs["units"].tolist())
+            unicodes = convert_units_to_unicode(units)
 
             f.write(f"{unicodes}\n")

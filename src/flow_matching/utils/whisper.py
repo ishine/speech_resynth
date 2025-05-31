@@ -295,7 +295,10 @@ def _encode(feature_extractor, model, dataloader: torch.utils.data.DataLoader):
             padding="do_not_pad",
         ).input_features.to("cuda")
 
-        spectrogram_labels = mel_spectrogram(item["input_values"], center=True).squeeze(0)  # (80, len)
+        input_values = item["input_values"].cuda()
+        input_values = input_values / input_values.abs().max() * 0.95
+
+        spectrogram_labels = mel_spectrogram(input_values, center=True).squeeze(0)  # (80, len)
         spectrogram_labels = spectrogram_labels.transpose(0, 1)  # (len, 80)
         spectrogram_labels = spectrogram_labels.cpu().tolist()
 

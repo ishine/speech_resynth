@@ -6,17 +6,16 @@ from pathlib import Path
 import jiwer
 import numpy as np
 import torch
+from datasets import load_dataset
 from torch.utils.tensorboard import SummaryWriter
-from transformers import AutoConfig, AutoModel, FastSpeech2ConformerHifiGan, FastSpeech2ConformerHifiGanConfig
+from transformers import AutoConfig, AutoModel, AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
 from ..bigvgan.bigvgan import BigVGan, BigVGanConfig
 from .configs import ConditionalFlowMatchingConfig
-from .data import UnitDataset
+from .data import get_collate_fn
 from .models import ConditionalFlowMatchingModel
 from .utils.misc import fix_random_seed, get_lr_schedule
-from .utils.phi.normalizer import EnglishTextNormalizer
-from .utils.phi.run_eval import Phi4MultimodalAudioModel
-from .utils.textless import embedding
+from .utils.whisper import WhisperEncoder
 
 sys.path.append("src/utmos")
 warnings.simplefilter("ignore", FutureWarning)
@@ -27,19 +26,29 @@ from ..utmos.score import Score
 AutoConfig.register("bigvgan", BigVGanConfig)
 AutoModel.register(BigVGanConfig, BigVGan)
 
-# register FastSpeech2ConformerHifiGan
-AutoConfig.register("hifigan", FastSpeech2ConformerHifiGanConfig)
-AutoModel.register(FastSpeech2ConformerHifiGanConfig, FastSpeech2ConformerHifiGan)
-
 
 @torch.inference_mode()
 def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int, writer: SummaryWriter):
     model.eval()
 
-    vocoder = AutoModel.from_pretrained(config.vocoder.path).cuda()
+    torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
-    asr = Phi4MultimodalAudioModel(config.asr.name)
-    normalizer = EnglishTextNormalizer()
+    vocoder = AutoModel.from_pretrained(config.vocoder.path).cuda()
+    asr = AutoModelForSpeechSeq2Seq.from_pretrained(
+        config.asr.name,
+        torch_dtype=torch_dtype,
+        low_cpu_mem_usage=True,
+        use_safetensors=True,
+        device_map="cuda",
+    )
+    processor = AutoProcessor.from_pretrained(config.asr.name)
+    pipe = pipeline(
+        "automatic-speech-recognition",
+        model=asr,
+        tokenizer=processor.tokenizer,
+        feature_extractor=processor.feature_extractor,
+        torch_dtype=torch_dtype,
+    )
 
     scorer = Score(ckpt_path="src/utmos/epoch=3-step=7459.ckpt", input_sample_rate=16000, device="cuda")
 
@@ -62,8 +71,8 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
         hyp_wav = hyp_wav.cpu().squeeze(0).numpy()
         ref_wav = batch["input_values"].squeeze(0).numpy()
 
-        hyp = asr([(hyp_wav, 16000)])[0]
-        ref = asr([(ref_wav, 16000)])[0]
+        hyp = pipe(hyp_wav, generate_kwargs={"language": "english"}, return_timestamps=True)["text"]
+        ref = pipe(ref_wav, generate_kwargs={"language": "english"}, return_timestamps=True)["text"]
 
         hyps.append(hyp)
         refs.append(ref)
@@ -74,9 +83,9 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
             writer.add_audio(f"hyp/{batch['names'][0]}", hyp_wav, step, 16000)
             writer.add_audio(f"ref/{batch['names'][0]}", ref_wav, step, 16000)
 
-    transcripts = [normalizer(transcript) for transcript in dataloader.dataset.transcripts]
-    hyps = [normalizer(hyp) for hyp in hyps]
-    refs = [normalizer(ref) for ref in refs]
+    transcripts = [processor.tokenizer.normalize(transcript) for transcript in dataloader.dataset.transcripts]
+    hyps = [processor.tokenizer.normalize(hyp) for hyp in hyps]
+    refs = [processor.tokenizer.normalize(ref) for ref in refs]
 
     wer_hyp = jiwer.wer(transcripts, hyps) * 100
     cer_hyp = jiwer.cer(transcripts, hyps) * 100
@@ -103,27 +112,26 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
 def train_flow_matching(config):
     fix_random_seed(config.common.seed)
 
-    train_set = UnitDataset(
-        config.dataset.train_file,
-        spectrogram_dir=config.dataset.spectrogram_dir,
-        frames_per_seg=config.flow_matching.frames_per_seg,
-        ext_audio=config.dataset.ext_audio,
-    )
-    dev_set = UnitDataset(
-        config.dataset.dev_file,
-        config.dataset.wav_dir,
-        ext_audio=config.dataset.ext_audio,
-    )
+    train_set = load_dataset(config.dataset.name, split="train").with_format("torch")
+    dev_set = load_dataset(config.dataset.name, split="dev").with_format("torch")
     train_loader = torch.utils.data.DataLoader(
         train_set,
         batch_size=config.flow_matching.batch_size,
         shuffle=True,
         num_workers=config.flow_matching.num_workers,
-        collate_fn=UnitDataset.collate_fn,
+        collate_fn=get_collate_fn(
+            frames_per_seg=config.flow_matching.frames_per_seg,
+            ext_audio=config.dataset.ext_audio,
+        ),
     )
     dev_loader = torch.utils.data.DataLoader(
         dev_set,
         num_workers=config.flow_matching.num_workers,
+        collate_fn=get_collate_fn(
+            wav_dir=config.dataset.wav_dir,
+            frames_per_seg=config.flow_matching.frames_per_seg,
+            ext_audio=config.dataset.ext_audio,
+        ),
     )
 
     model = ConditionalFlowMatchingModel(
@@ -144,10 +152,15 @@ def train_flow_matching(config):
             std=config.flow_matching.std,
             predict_duration=config.flow_matching.predict_duration,
         ),
-        embedding(
-            config.flow_matching.dense_model_name,
-            config.flow_matching.quantizer_model_name,
-            config.flow_matching.vocab_size,
+        torch.nn.Embedding.from_pretrained(
+            torch.cat(
+                (
+                    torch.zeros(1, config.flow_matching.dim_cond_emb),
+                    WhisperEncoder.from_pretrained(config.tokenizer.name).quantizer,
+                )
+            ),
+            freeze=True,
+            padding_idx=0,
         ),
     ).cuda()
 
@@ -176,7 +189,6 @@ def train_flow_matching(config):
                 loss = model(
                     input_ids=batch["input_ids"].cuda(),
                     spectrogram_labels=batch["spectrogram_labels"].cuda(),
-                    duration_labels=batch["duration_labels"].cuda(),
                 )
             scaler.scale(loss).backward()
 

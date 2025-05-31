@@ -6,8 +6,8 @@ from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 
 from .data import SpeechDataset
-from .models import ConditionalFlowMatchingWithBigVGan, ConditionalFlowMatchingWithHifiGan
-from .utils.textless import load_encoder
+from .models import ConditionalFlowMatchingWithBigVGan
+from .utils.whisper import WhisperEncoder, WhisperFeatureExtractor
 
 
 @torch.inference_mode()
@@ -23,19 +23,23 @@ def synthesize(config):
         collate_fn=SpeechDataset.collate_fn,
     )
 
-    encoder = load_encoder(
-        config.flow_matching.dense_model_name,
-        config.flow_matching.quantizer_model_name,
-        config.flow_matching.vocab_size,
-        config.flow_matching.predict_duration,
-    )
+    # load model and processor
+    feature_extractor = WhisperFeatureExtractor.from_pretrained(config.tokenizer.name)
+    encoder = WhisperEncoder.from_pretrained(config.tokenizer.name).cuda()
 
     decoder = ConditionalFlowMatchingWithBigVGan.load_pretrained(config.flow_matching.path, config.vocoder.path).cuda()
 
     for batch in tqdm(dataloader):
         input_ids = []
         for input_values, attention_mask in zip(batch["input_values"], batch["attention_mask"]):
-            units = encoder(input_values[attention_mask.bool()].cuda())["units"]
+            input_features = feature_extractor(
+                input_values[attention_mask.bool()].numpy(),
+                return_tensors="pt",
+                sampling_rate=16000,
+                device="cuda",
+                padding="do_not_pad",
+            ).input_features.to("cuda")
+            units = encoder(input_features, out_layer=config.tokenizer.out_layer)
             units = units + 1  # 0: pad
             input_ids.append(units)
 

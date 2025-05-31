@@ -1,6 +1,6 @@
 from typing import Dict
 
-from transformers import FastSpeech2ConformerHifiGanConfig, PretrainedConfig
+from transformers import PretrainedConfig
 
 from ..bigvgan.bigvgan import BigVGanConfig
 
@@ -43,35 +43,14 @@ class ConditionalFlowMatchingConfig(PretrainedConfig):
         super().__init__(**kwargs)
 
 
-class ConditionalFlowMatchingWithHifiGanConfig(PretrainedConfig):
-    model_type = "flow_matching_with_hifigan"
-    sub_configs = {"model_config": ConditionalFlowMatchingConfig, "vocoder_config": FastSpeech2ConformerHifiGanConfig}
-
-    def __init__(
-        self,
-        model_config: Dict = None,
-        vocoder_config: Dict = None,
-        **kwargs,
-    ):
-        if model_config is None:
-            model_config = {}
-
-        if vocoder_config is None:
-            vocoder_config = {}
-
-        self.model_config = ConditionalFlowMatchingConfig(**model_config)
-        self.vocoder_config = FastSpeech2ConformerHifiGanConfig(**vocoder_config)
-        super().__init__(**kwargs)
-
-
 class ConditionalFlowMatchingWithBigVGanConfig(PretrainedConfig):
     model_type = "flow_matching_with_bigvgan"
     sub_configs = {"model_config": ConditionalFlowMatchingConfig, "vocoder_config": BigVGanConfig}
 
     def __init__(
         self,
-        model_config: Dict = None,
-        vocoder_config: Dict = None,
+        model_config: Dict | None = None,
+        vocoder_config: Dict | None = None,
         **kwargs,
     ):
         if model_config is None:

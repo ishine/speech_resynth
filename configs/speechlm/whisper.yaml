@@ -42,9 +42,8 @@ optim:
   total_steps: 200000
 
 s2u:
-  dense_model_name: "hubert-base-ls960"
-  quantizer_model_name: "kmeans"
-  vocab_size: 100
+  name: "ryota-komatsu/whisper-large-v3-tokenizer"
+  vocab_size: 4096
 
   tokenizer_path: "models/speechlm/hubert/tokenizer.json"
 
