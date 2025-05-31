@@ -20,7 +20,7 @@ import faiss
 import numpy as np
 import torch
 import transformers
-from datasets import Dataset, DatasetDict
+from datasets import Array2D, Dataset, DatasetDict
 from torch import nn
 from tqdm import tqdm
 from transformers import WhisperConfig
@@ -295,9 +295,9 @@ def _encode(feature_extractor, model, dataloader: torch.utils.data.DataLoader):
             padding="do_not_pad",
         ).input_features.to("cuda")
 
-        # spectrogram_labels = mel_spectrogram(item["input_values"].squeeze(0), center=True)  # (80, len)
-        # spectrogram_labels = spectrogram_labels.transpose(0, 1)  # (len, 80)
-        # spectrogram_labels = spectrogram_labels.cpu()
+        spectrogram_labels = mel_spectrogram(item["input_values"], center=True).squeeze(0)  # (80, len)
+        spectrogram_labels = spectrogram_labels.transpose(0, 1)  # (len, 80)
+        spectrogram_labels = spectrogram_labels.cpu().tolist()
 
         try:
             units = model.encode(
@@ -305,10 +305,16 @@ def _encode(feature_extractor, model, dataloader: torch.utils.data.DataLoader):
                 out_layer=model.config.encoder_layers // 2 - 1,
             ).tolist()
 
-            item = {"id": item["name"][0], "units": units, "transcript": item["transcript"][0]}
+            item = {
+                "id": item["name"][0],
+                "units": units,
+                "transcript": item["transcript"][0],
+                "spectrogram": spectrogram_labels,
+            }
             dataset.append(item)
         except:
             pass
 
     dataset = Dataset.from_list(dataset)
+    dataset = dataset.cast_column("spectrogram", Array2D(shape=(None, 80), dtype="float32"))
     return dataset
