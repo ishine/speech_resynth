@@ -23,6 +23,7 @@ def mel_spectrogram(
     hop_size: int = 320,
     fmin=0,
     fmax=8000,
+    center: bool = False,
 ):
     if torch.min(y) < -1.0:
         print("min value is ", torch.min(y))
@@ -42,7 +43,7 @@ def mel_spectrogram(
         n_fft,
         hop_length=hop_size,
         window=hann_window[str(y.device)],
-        center=False,
+        center=center,
         onesided=True,
         return_complex=True,
     )
