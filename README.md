@@ -48,7 +48,7 @@ input_features = feature_extractor(
 ).input_features.to("cuda")
 
 # encode a waveform into pseudo-phonetic units
-units = encoder(input_features, out_layer=15)
+units = encoder.encode(input_features)
 units = units.unsqueeze(0) + 1  # 0: pad
 
 # resynthesis
@@ -90,7 +90,7 @@ input_features = feature_extractor(
 ).input_features.to("cuda")
 
 # encode a waveform into pseudo-phonetic units
-units = encoder(input_features, out_layer=15).tolist()
+units = encoder.encode(input_features).tolist()
 unicodes = convert_units_to_unicode(units)
 
 # BPE
@@ -136,6 +136,10 @@ To run only a specific stage, pass it as an argument.
 
 Supported processing stages
 1. resample
+1. extract_features  # can be skipped when using a pretrained BigVGan
+1. train_bigvgan  # can be skipped when using a pretrained BigVGan
+1. train_tokenizer  # can be skipped when using a pretrained model
+1. tokenize_dataset  # can be skipped when using a Hugging Face datasets
 1. train_flow_matching
 1. synthesize
 

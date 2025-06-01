@@ -112,8 +112,9 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
 def train_flow_matching(config):
     fix_random_seed(config.common.seed)
 
-    train_set = load_dataset(config.dataset.name, split="train").with_format("torch")
-    dev_set = load_dataset(config.dataset.name, split="dev").with_format("torch")
+    train_set = load_dataset(config.dataset.name, split="train", keep_in_memory=True).with_format("torch")
+    dev_set = load_dataset(config.dataset.name, split="dev", keep_in_memory=True).with_format("torch")
+
     train_loader = torch.utils.data.DataLoader(
         train_set,
         batch_size=config.flow_matching.batch_size,
@@ -122,6 +123,7 @@ def train_flow_matching(config):
         collate_fn=get_collate_fn(
             frames_per_seg=config.flow_matching.frames_per_seg,
             ext_audio=config.dataset.ext_audio,
+            predict_duration=config.flow_matching.predict_duration,
         ),
     )
     dev_loader = torch.utils.data.DataLoader(
@@ -131,6 +133,7 @@ def train_flow_matching(config):
             wav_dir=config.dataset.wav_dir,
             frames_per_seg=config.flow_matching.frames_per_seg,
             ext_audio=config.dataset.ext_audio,
+            predict_duration=config.flow_matching.predict_duration,
         ),
     )
 
@@ -189,6 +192,7 @@ def train_flow_matching(config):
                 loss = model(
                     input_ids=batch["input_ids"].cuda(),
                     spectrogram_labels=batch["spectrogram_labels"].cuda(),
+                    duration_labels=batch["duration_labels"].cuda(),
                 )
             scaler.scale(loss).backward()
 

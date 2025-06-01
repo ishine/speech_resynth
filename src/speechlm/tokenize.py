@@ -86,7 +86,7 @@ def _tokenize_slm21(
             device="cuda",
             padding="do_not_pad",
         ).input_features.to("cuda")
-        units = encoder(input_features, out_layer=15).tolist()
+        units = encoder.encode(input_features).tolist()
         unicodes = convert_units_to_unicode(units)
         input_ids = tokenizer.encode(unicodes).ids
 
@@ -124,7 +124,7 @@ def _encode(
                 device="cuda",
                 padding="do_not_pad",
             ).input_features.to("cuda")
-            units = encoder(input_features, out_layer=15).tolist()
+            units = encoder.encode(input_features).tolist()
 
             unicodes = convert_units_to_unicode(units)
 

@@ -39,7 +39,7 @@ def synthesize(config):
                 device="cuda",
                 padding="do_not_pad",
             ).input_features.to("cuda")
-            units = encoder(input_features, out_layer=config.tokenizer.out_layer)
+            units = encoder.encode(input_features)
             units = units + 1  # 0: pad
             input_ids.append(units)
 

@@ -5,6 +5,7 @@ dataset:
   name: "ryota-komatsu/LibriTTS-R-whisper-large-v3-4096units"  # https://huggingface.co/datasets
   wav_dir: "data/LibriTTS_R_16k" # ${root}/train-clean-100, train-clean-360, ...
   wav_dir_orig: "data/LibriTTS_R"  # if wav_dir == wav_dir_orig, original wav files are overwritten with 16 kHz waveforms
+  spectrogram_dir: "data/LibriTTS_R_16k/spectrogram"  # 34GB for BigVGAN
   vad: false
 
   ext_audio: ".wav"
@@ -15,9 +16,6 @@ synthesis:
   tgt_dir: ${dataset.wav_dir}_resynth
   split: "test-*"
   ext_audio: ${dataset.ext_audio}
-
-eval:
-  result_path: "results/resynth/score.csv"
 
 flow_matching:
   path: "models/flow_matching"
@@ -36,9 +34,8 @@ flow_matching:
   dt: 0.1
   truncation_value: null  # truncation trick (https://arxiv.org/abs/1809.11096)
 
-  vocab_size: ${tokenizer.vocab_size}
-
   # src.flow_matching.configs.ConditionalFlowMatchingConfig
+  vocab_size: ${tokenizer.vocab_size}
   dim_in: 80
   dim_cond_emb: 1280
   hidden_size: 256
@@ -105,9 +102,10 @@ vocoder:
   validation_interval: 10000
 
 tokenizer:
+  base: "openai/whisper-large-v3"
   name: "ryota-komatsu/whisper-large-v3-tokenizer"
   vocab_size: 4096
-  out_layer: 15
+  encoder_layers: 16
 
 flow_matching_with_vocoder:
   name: "ryota-komatsu/flow_matching_with_bigvgan"

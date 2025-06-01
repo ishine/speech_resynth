@@ -8,13 +8,13 @@ from ..bigvgan.bigvgan import BigVGanConfig
 class ConditionalFlowMatchingConfig(PretrainedConfig):
     def __init__(
         self,
-        vocab_size: int = 2000,
+        vocab_size: int = 4096,
         dim_in: int = 80,
         dim_cond_emb: int = 768,
         hidden_size: int = 256,
         depth: int = 4,
         heads: int = 2,
-        intermediate_size: int = 896,
+        intermediate_size: int = 768,
         attn_dropout: float = 0.0,
         ff_dropout: float = 0.0,
         use_unet_skip_connection: bool = False,

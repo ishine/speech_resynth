@@ -109,7 +109,11 @@ def get_collate_fn(
     wav_dir: Optional[str] = None,
     frames_per_seg: Optional[int] = None,
     ext_audio: str = ".wav",
+    predict_duration: bool = False,
 ):
+    if predict_duration:
+        assert frames_per_seg is None
+
     def parse_item(item: Dict[str, Any]):
         input_ids = item["units"] + 1  # 0: pad
         spectrogram_labels = item["spectrogram"]
@@ -122,6 +126,11 @@ def get_collate_fn(
             wav, sr = torchaudio.load(wav_path)
             wav = wav.squeeze(0)
 
+        if predict_duration:
+            input_ids, durations = torch.unique_consecutive(input_ids, return_counts=True)
+        else:
+            durations = torch.ones_like(input_ids)
+
         if frames_per_seg is not None:
             diff = len(input_ids) - frames_per_seg
 
@@ -130,30 +139,34 @@ def get_collate_fn(
                 input_ids = input_ids[start : start + frames_per_seg]
                 spectrogram_labels = spectrogram_labels[start : start + frames_per_seg]
 
-        return input_ids, spectrogram_labels, transcript, id, wav
+        return input_ids, spectrogram_labels, durations, transcript, id, wav
 
     def collate_fn(batch):
         input_ids = []
         spectrogram_labels = []
+        duration_labels = []
         transcripts = []
         names = []
         input_values = []
 
         for item in batch:
-            units, spectrogram, transcript, id, wav = parse_item(item)
+            units, spectrogram, durations, transcript, id, wav = parse_item(item)
             input_ids.append(units)
             spectrogram_labels.append(spectrogram)
+            duration_labels.append(durations)
             transcripts.append(transcript)
             names.append(id)
             input_values.append(wav)
 
         input_ids = pad_sequence(input_ids, batch_first=True)
         spectrogram_labels = pad_sequence(spectrogram_labels, batch_first=True, padding_value=-100)
+        duration_labels = pad_sequence(duration_labels, batch_first=True)
         input_values = pad_sequence(input_values, batch_first=True)
 
         return {
             "input_ids": input_ids,
             "spectrogram_labels": spectrogram_labels,
+            "duration_labels": duration_labels,
             "transcripts": transcripts,
             "names": names,
             "input_values": input_values,

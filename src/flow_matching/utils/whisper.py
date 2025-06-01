@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import math
-from typing import Optional
 
 import faiss
 import numpy as np
@@ -145,7 +144,6 @@ class WhisperEncoder(WhisperPreTrainedModel):
         self,
         input_features,
         attention_mask=None,
-        out_layer: Optional[int] = 15,
     ):
         inputs_embeds = nn.functional.gelu(self.conv1(input_features))
         inputs_embeds = nn.functional.gelu(self.conv2(inputs_embeds))
@@ -166,10 +164,7 @@ class WhisperEncoder(WhisperPreTrainedModel):
 
             hidden_states = layer_outputs[0]
 
-            if idx == out_layer:
-                return BaseModelOutput(last_hidden_state=hidden_states)
-
-        hidden_states = self.layer_norm(hidden_states)
+        # hidden_states = self.layer_norm(hidden_states)
 
         return BaseModelOutput(last_hidden_state=hidden_states)
 
@@ -198,20 +193,17 @@ class WhisperModel(WhisperPreTrainedModel):
 
 @torch.amp.autocast("cuda", dtype=torch.float16)
 @torch.inference_mode()
-def train_quantizer(
-    data_dir="data/LibriTTS_R_16k",
-    quantizer_path="models/quantizer.pt",
-    codebook_size: int = 4096,
-    model_id="openai/whisper-large-v3",
-):
+def train_tokenizer(config):
     # load model and processor
-    feature_extractor = WhisperFeatureExtractor.from_pretrained(model_id)
-    config = WhisperConfig.from_pretrained(model_id)
-    config.codebook_size = codebook_size
-    model = WhisperModel.from_pretrained(model_id, config=config, torch_dtype=torch.float16).encoder.cuda()
+    feature_extractor = WhisperFeatureExtractor.from_pretrained(config.tokenizer.base)
+    model_config = WhisperConfig.from_pretrained(config.tokenizer.base)
+    model_config.codebook_size = config.tokenizer.vocab_size
+    model = WhisperModel.from_pretrained(
+        config.tokenizer.base, config=model_config, torch_dtype=torch.float16
+    ).encoder.cuda()
 
     # load dataset
-    dataset = LibriTTS_R(data_dir, split="train-clean-100")
+    dataset = LibriTTS_R(config.dataset.wav_dir, split="train-clean-100")
     loader = torch.utils.data.DataLoader(dataset)
 
     hidden_states = []
@@ -227,10 +219,7 @@ def train_quantizer(
         length = model._get_feat_extract_output_lengths(input_features.shape[2])
 
         try:
-            hidden_state = model(
-                input_features,
-                out_layer=model.config.encoder_layers // 2 - 1,
-            ).last_hidden_state
+            hidden_state = model(input_features).last_hidden_state
 
             hidden_state = hidden_state[0, :length].cpu().numpy()
             hidden_states.append(hidden_state)
@@ -241,7 +230,7 @@ def train_quantizer(
 
     quantizer = faiss.Kmeans(
         hidden_states.shape[1],
-        codebook_size,
+        config.tokenizer.vocab_size,
         niter=100,
         nredo=5,
         verbose=True,
@@ -251,27 +240,19 @@ def train_quantizer(
         max_points_per_centroid=hidden_states.shape[0],
     )
     quantizer.train(hidden_states)
-    torch.save(torch.from_numpy(quantizer.centroids), quantizer_path)
+
+    model.quantizer = torch.from_numpy(quantizer.centroids)
+    model.push_to_hub(config.tokenizer.name)
+    feature_extractor.push_to_hub(config.tokenizer.name)
 
 
-def encode(
-    data_dir="data/LibriTTS_R_16k",
-    quantizer_path="models/quantizer.pt",
-    model_id="openai/whisper-large-v3",
-):
+def tokenize_dataset(config):
     # load model and processor
-    feature_extractor = WhisperFeatureExtractor.from_pretrained(model_id)
+    feature_extractor = WhisperFeatureExtractor.from_pretrained(config.tokenizer.name)
+    model = WhisperEncoder.from_pretrained(config.tokenizer.name).cuda()
 
-    quantizer = torch.load(quantizer_path)
-
-    config = WhisperConfig.from_pretrained(model_id)
-    config.codebook_size = quantizer.shape[0]
-
-    model = WhisperModel.from_pretrained(model_id, config=config, torch_dtype=torch.float16).encoder.cuda()
-    model.quantizer = quantizer
-
-    trainset = LibriTTS_R(data_dir, split="train-*")
-    devset = LibriTTS_R(data_dir, split="dev-clean")
+    trainset = LibriTTS_R(config.dataset.wav_dir, split="train-*")
+    devset = LibriTTS_R(config.dataset.wav_dir, split="dev-clean")
 
     train_loader = torch.utils.data.DataLoader(trainset)
     dev_loader = torch.utils.data.DataLoader(devset)
@@ -280,7 +261,7 @@ def encode(
     devset = _encode(feature_extractor, model, dev_loader)
 
     dataset = DatasetDict({"train": trainset, "dev": devset})
-    dataset.push_to_hub("LibriTTS-R-whisper-large-v3")
+    dataset.push_to_hub(config.dataset.name)
 
 
 def _encode(feature_extractor, model, dataloader: torch.utils.data.DataLoader):
@@ -303,10 +284,7 @@ def _encode(feature_extractor, model, dataloader: torch.utils.data.DataLoader):
         spectrogram_labels = spectrogram_labels.cpu().tolist()
 
         try:
-            units = model.encode(
-                input_features,
-                out_layer=model.config.encoder_layers // 2 - 1,
-            ).tolist()
+            units = model.encode(input_features).tolist()
 
             item = {
                 "id": item["name"][0],
