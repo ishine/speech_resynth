@@ -52,7 +52,7 @@ flow_matching:
   predict_duration: false
 
 vocoder:
-  path: "models/bigvgan"
+  path: "ryota-komatsu/bigvgan"
   batch_size: 20
   segment_size: 16080
   num_workers: 20
@@ -88,8 +88,8 @@ vocoder:
 
   clip_grad_norm: 100
 
-  n_fft: 400  # HuBERT
-  hop_size: 320  # HuBERT
+  n_fft: 400
+  hop_size: 320
 
   dist_config:
     dist_backend: "nccl"

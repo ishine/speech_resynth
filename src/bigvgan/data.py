@@ -1,6 +1,6 @@
-import json
 import os
 import random
+from pathlib import Path
 
 import torch
 import torchaudio
@@ -60,7 +60,6 @@ class MelDataset(torch.utils.data.Dataset):
         self,
         input_wavs_dir,
         input_mels_dir,
-        training_files,
         segment_size: int,
         n_fft: int = 400,
         hop_size: int = 320,
@@ -76,12 +75,14 @@ class MelDataset(torch.utils.data.Dataset):
         self.wav_paths = []
         self.mel_paths = []
 
-        with open(training_files) as f:
-            dataset = json.load(f)
+        input_wavs_dir = Path(input_wavs_dir)
+        input_mels_dir = Path(input_mels_dir)
 
-        for wav_name in dataset:
-            wav_path = os.path.join(input_wavs_dir, wav_name + ext_audio)
-            mel_path = os.path.join(input_mels_dir, wav_name + ".pt")
+        wav_paths = input_wavs_dir.glob("**/*" + ext_audio)
+
+        for wav_path in wav_paths:
+            mel_path = input_mels_dir / wav_path.relative_to(input_wavs_dir).with_suffix(".pt")
+            wav_path = str(wav_path)
 
             self.wav_paths.append(wav_path)
             self.mel_paths.append(mel_path)

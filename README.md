@@ -24,7 +24,7 @@ sh scripts/setup.sh  # download UTMOS
 import torchaudio
 
 from src.flow_matching.models import ConditionalFlowMatchingWithBigVGan
-from src.flow_matching.utils.whisper import WhisperFeatureExtractor, WhisperEncoder
+from src.flow_matching.utils.whisper import WhisperEncoder, WhisperFeatureExtractor
 
 wav_path = "/path/to/wav"
 
@@ -63,7 +63,7 @@ import torchaudio
 from tokenizers import Tokenizer
 from transformers import LlamaForCausalLM
 
-from src.flow_matching.utils.whisper import WhisperFeatureExtractor, WhisperEncoder
+from src.flow_matching.utils.whisper import WhisperEncoder, WhisperFeatureExtractor
 from src.speechlm.utils import convert_units_to_unicode
 
 wav_path = "/path/to/wav"

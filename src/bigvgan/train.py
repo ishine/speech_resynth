@@ -105,7 +105,6 @@ def train(rank, config):
     trainset = MelDataset(
         config.dataset.wav_dir,
         config.dataset.spectrogram_dir,
-        config.dataset.train_file,
         config.vocoder.segment_size,
         config.vocoder.n_fft,
         config.vocoder.hop_size,
@@ -128,7 +127,6 @@ def train(rank, config):
         validset = MelDataset(
             config.dataset.wav_dir,
             config.dataset.spectrogram_dir,
-            config.dataset.dev_file,
             config.vocoder.segment_size,
             config.vocoder.n_fft,
             config.vocoder.hop_size,
