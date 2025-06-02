@@ -34,7 +34,7 @@ from ..bigvgan.bigvgan import BigVGan, BigVGanConfig
 from ..bigvgan.data import dynamic_range_compression_torch
 from .configs import ConditionalFlowMatchingConfig, ConditionalFlowMatchingWithBigVGanConfig
 from .modules.fastspeech.modules import ConditionalFlowMatchingDurationPredictor
-from .modules.fourier_embed import RandomFourierEmbed
+from .modules.time_embed import TimestepEmbedding
 from .modules.transformer import ConvPositionEmbed, Transformer
 
 
@@ -45,9 +45,7 @@ class ConditionalFlowMatchingModel(PreTrainedModel):
         super().__init__(config)
         self.config = config
 
-        self.time_cond_mlp = nn.Sequential(
-            RandomFourierEmbed(config.hidden_size), nn.Linear(config.hidden_size + 1, config.hidden_size), nn.SiLU()
-        )
+        self.time_cond_mlp = TimestepEmbedding(config.hidden_size)
         self.to_cond_emb = (
             nn.Embedding(config.vocab_size + 1, config.dim_cond_emb, padding_idx=0) if embedding is None else embedding
         )
@@ -96,8 +94,8 @@ class ConditionalFlowMatchingModel(PreTrainedModel):
 
         # main conditional flow logic is below
         x0 = torch.randn_like(spectrogram_labels)
-        times = torch.rand((batch,), device=self.device)
-        t = times.unsqueeze(1).unsqueeze(2)
+        timesteps = torch.rand((batch,), device=self.device)
+        t = timesteps.unsqueeze(1).unsqueeze(2)
         xt = (1 - t) * x0 + t * spectrogram_labels
         ut = spectrogram_labels - x0
 
@@ -122,7 +120,7 @@ class ConditionalFlowMatchingModel(PreTrainedModel):
         x = self.to_embed(hidden_states)
         x = self.conv_embed(x, mask=mask) + x
 
-        time_emb = self.time_cond_mlp(times)
+        time_emb = self.time_cond_mlp(timesteps)
 
         # attend
         x = self.transformer(x, mask=mask, adaptive_rmsnorm_cond=time_emb)

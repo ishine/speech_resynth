@@ -131,7 +131,6 @@ def train_flow_matching(config):
         num_workers=config.flow_matching.num_workers,
         collate_fn=get_collate_fn(
             wav_dir=config.dataset.wav_dir,
-            frames_per_seg=config.flow_matching.frames_per_seg,
             ext_audio=config.dataset.ext_audio,
             predict_duration=config.flow_matching.predict_duration,
         ),
