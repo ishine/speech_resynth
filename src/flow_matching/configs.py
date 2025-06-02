@@ -18,8 +18,6 @@ class ConditionalFlowMatchingConfig(PretrainedConfig):
         attn_dropout: float = 0.0,
         ff_dropout: float = 0.0,
         use_unet_skip_connection: bool = False,
-        conv_pos_embed_kernel_size: int = 31,
-        conv_pos_embed_groups: int = 256,
         mean: float = -5.8843,
         std: float = 2.2615,
         predict_duration: bool = False,
@@ -35,8 +33,6 @@ class ConditionalFlowMatchingConfig(PretrainedConfig):
         self.attn_dropout = attn_dropout
         self.ff_dropout = ff_dropout
         self.use_unet_skip_connection = use_unet_skip_connection
-        self.conv_pos_embed_kernel_size = conv_pos_embed_kernel_size
-        self.conv_pos_embed_groups = conv_pos_embed_groups
         self.mean = mean
         self.std = std
         self.predict_duration = predict_duration

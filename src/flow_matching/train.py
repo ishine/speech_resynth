@@ -148,8 +148,6 @@ def train_flow_matching(config):
             attn_dropout=config.flow_matching.attn_dropout,
             ff_dropout=config.flow_matching.ff_dropout,
             use_unet_skip_connection=config.flow_matching.use_unet_skip_connection,
-            conv_pos_embed_kernel_size=config.flow_matching.conv_pos_embed_kernel_size,
-            conv_pos_embed_groups=config.flow_matching.conv_pos_embed_groups,
             mean=config.flow_matching.mean,
             std=config.flow_matching.std,
             predict_duration=config.flow_matching.predict_duration,

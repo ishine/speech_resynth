@@ -74,29 +74,6 @@ def apply_rotary_pos_emb(pos, t):
     return t * pos.cos() + rotate_half(t) * pos.sin()
 
 
-class ConvPositionEmbed(nn.Module):
-    def __init__(self, hidden_size: int, kernel_size: int = 31, groups: int = 1):
-        super().__init__()
-        assert kernel_size % 2 == 1
-        self.dw_conv1d = nn.Sequential(
-            nn.Conv1d(hidden_size, hidden_size, kernel_size, groups=groups, padding=kernel_size // 2), nn.GELU()
-        )
-
-    def forward(self, x, mask=None):
-        if exists(mask):
-            mask = mask[..., None]
-            x = x.masked_fill(~mask, 0.0)
-
-        x = rearrange(x, "b n c -> b c n")
-        x = self.dw_conv1d(x)
-        out = rearrange(x, "b c n -> b n c")
-
-        if exists(mask):
-            out = out.masked_fill(~mask, 0.0)
-
-        return out
-
-
 class Attention(nn.Module):
     def __init__(self, hidden_size: int, heads: int, dropout: float = 0.0):
         super().__init__()

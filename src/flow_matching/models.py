@@ -35,7 +35,7 @@ from ..bigvgan.data import dynamic_range_compression_torch
 from .configs import ConditionalFlowMatchingConfig, ConditionalFlowMatchingWithBigVGanConfig
 from .modules.fastspeech.modules import ConditionalFlowMatchingDurationPredictor
 from .modules.time_embed import TimestepEmbedding
-from .modules.transformer import ConvPositionEmbed, Transformer
+from .modules.transformer import Transformer
 
 
 class ConditionalFlowMatchingModel(PreTrainedModel):
@@ -46,15 +46,10 @@ class ConditionalFlowMatchingModel(PreTrainedModel):
         self.config = config
 
         self.time_cond_mlp = TimestepEmbedding(config.hidden_size)
-        self.to_cond_emb = (
+        self.embed_tokens = (
             nn.Embedding(config.vocab_size + 1, config.dim_cond_emb, padding_idx=0) if embedding is None else embedding
         )
         self.to_embed = nn.Linear(config.dim_in + config.dim_cond_emb, config.hidden_size)
-        self.conv_embed = ConvPositionEmbed(
-            hidden_size=config.hidden_size,
-            kernel_size=config.conv_pos_embed_kernel_size,
-            groups=config.conv_pos_embed_groups,
-        )
 
         self.transformer = Transformer(
             hidden_size=config.hidden_size,
@@ -100,14 +95,14 @@ class ConditionalFlowMatchingModel(PreTrainedModel):
         ut = spectrogram_labels - x0
 
         # phoneme or semantic conditioning embedding
-        hidden_states = self.to_cond_emb(input_ids)
+        inputs_embeds = self.embed_tokens(input_ids)
 
         # forward duration predictor
         duration_loss = 0
         if self.config.predict_duration:
-            duration_predictions = self.duration_predictor(hidden_states)
+            duration_predictions = self.duration_predictor(inputs_embeds)
             # use groundtruth in training
-            hidden_states = length_regulator(hidden_states, duration_labels)
+            inputs_embeds = length_regulator(inputs_embeds, duration_labels)
 
             attention_mask = input_ids.ne(0)
             duration_predictions = duration_predictions.masked_select(attention_mask)
@@ -115,10 +110,9 @@ class ConditionalFlowMatchingModel(PreTrainedModel):
             duration_labels = torch.log(duration_labels.float() + self.duration_predictor.log_domain_offset)
             duration_loss = F.mse_loss(duration_predictions, duration_labels)
 
-        hidden_states = torch.cat([xt, hidden_states], dim=-1)
+        hidden_states = torch.cat([xt, inputs_embeds], dim=-1)
 
         x = self.to_embed(hidden_states)
-        x = self.conv_embed(x, mask=mask) + x
 
         time_emb = self.time_cond_mlp(timesteps)
 
@@ -150,30 +144,29 @@ class ConditionalFlowMatchingModel(PreTrainedModel):
         """
         mask = input_ids.ne(0)
 
-        hidden_states = self.to_cond_emb(input_ids)
+        inputs_embeds = self.embed_tokens(input_ids)
 
         # forward duration predictor
         if self.config.predict_duration:
-            duration_predictions = self.duration_predictor(hidden_states)
+            duration_predictions = self.duration_predictor(inputs_embeds)
             duration_predictions = duration_predictions.masked_fill(~mask, 0.0)
-            hidden_states = length_regulator(hidden_states, duration_predictions)
+            inputs_embeds = length_regulator(inputs_embeds, duration_predictions)
 
             # update mask
             lengths = duration_predictions.sum(dim=1, keepdim=True)  # (bsz, 1)
             mask = torch.arange(0, lengths.max(), device=lengths.device).unsqueeze(0) < lengths
 
-        bsz, seq_len, _ = hidden_states.shape
+        bsz, seq_len, _ = inputs_embeds.shape
 
-        xt = torch.randn(bsz, seq_len, self.config.dim_in, device=hidden_states.device)
+        xt = torch.randn(bsz, seq_len, self.config.dim_in, device=inputs_embeds.device)
         if truncation_value is not None:
             xt = torch.clamp(xt, -truncation_value, truncation_value)
 
         for t in torch.arange(0, 1, dt, device=self.device):
             # concat source signal, semantic / phoneme conditioning embed, and conditioning
             # and project
-            x = torch.cat([xt, hidden_states], dim=-1)
+            x = torch.cat([xt, inputs_embeds], dim=-1)
             x = self.to_embed(x)
-            x = self.conv_embed(x, mask=mask) + x
 
             time_emb = self.time_cond_mlp(t.unsqueeze(0).expand(bsz))
 
