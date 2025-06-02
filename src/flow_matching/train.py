@@ -83,7 +83,7 @@ def validate(config, dataloader, model: ConditionalFlowMatchingModel, step: int,
             writer.add_audio(f"hyp/{batch['names'][0]}", hyp_wav, step, 16000)
             writer.add_audio(f"ref/{batch['names'][0]}", ref_wav, step, 16000)
 
-    transcripts = [processor.tokenizer.normalize(transcript) for transcript in dataloader.dataset.transcripts]
+    transcripts = [processor.tokenizer.normalize(transcript) for transcript in dataloader.dataset["transcript"]]
     hyps = [processor.tokenizer.normalize(hyp) for hyp in hyps]
     refs = [processor.tokenizer.normalize(ref) for ref in refs]
 
