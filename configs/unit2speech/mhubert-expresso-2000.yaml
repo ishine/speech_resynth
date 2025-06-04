@@ -2,7 +2,7 @@ common:
   seed: 0
 
 dataset:
-  name: "ryota-komatsu/LibriTTS-R-whisper-large-v3-4096units"  # https://huggingface.co/datasets
+  name: "ryota-komatsu/libritts-r-mhubert-2000units"  # https://huggingface.co/datasets
   wav_dir: "data/LibriTTS_R_16k" # ${root}/train-clean-100, train-clean-360, ...
   wav_dir_orig: "data/LibriTTS_R"  # if wav_dir == wav_dir_orig, original wav files are overwritten with 16 kHz waveforms
   spectrogram_dir: "data/LibriTTS_R_16k/spectrogram"  # 34GB for BigVGAN
@@ -19,10 +19,10 @@ synthesis:
 
 flow_matching:
   path: "models/flow_matching"
-  batch_size: 2700 # work with single 24GB VRAM GPU
-  frames_per_seg: 100  # 2 seconds
+  batch_size: 270 # work with single 24GB VRAM GPU
+  frames_per_seg: 1000  # 20 seconds
   num_workers: 16
-  epoch: 100
+  epoch: 20
   warmup_steps: 1000
   lr: 0.001
   lr_min: 0.0001
@@ -37,7 +37,7 @@ flow_matching:
   # src.flow_matching.configs.ConditionalFlowMatchingConfig
   vocab_size: ${tokenizer.vocab_size}
   dim_in: 80
-  dim_cond_emb: 1280
+  dim_cond_emb: 768
   hidden_size: 256
   depth: 4
   heads: 2
@@ -100,10 +100,10 @@ vocoder:
   validation_interval: 10000
 
 tokenizer:
-  base: "openai/whisper-large-v3"
-  name: "ryota-komatsu/whisper-large-v3-tokenizer"
-  vocab_size: 4096
-  encoder_layers: 16
+  dense_model_name: "mhubert-base-vp_mls_cv_8lang"
+  quantizer_model_name: "kmeans-expresso"
+  vocab_size: 2000
+  deduplicate: ${flow_matching.predict_duration}
 
 flow_matching_with_vocoder:
   name: "ryota-komatsu/flow_matching_with_bigvgan"

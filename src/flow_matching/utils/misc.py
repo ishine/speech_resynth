@@ -4,8 +4,6 @@ import jiwer
 import numpy as np
 import torch
 
-from .text import substitutions
-
 
 def fix_random_seed(seed=0):
     random.seed(seed)
@@ -36,7 +34,6 @@ def get_lr_schedule(
 wer_transform = jiwer.Compose(
     [
         jiwer.ToLowerCase(),
-        jiwer.SubstituteRegexes(substitutions),
         jiwer.RemovePunctuation(),
         jiwer.ExpandCommonEnglishContractions(),
         jiwer.RemoveKaldiNonWords(),
@@ -50,7 +47,6 @@ wer_transform = jiwer.Compose(
 cer_transform = jiwer.Compose(
     [
         jiwer.ToLowerCase(),
-        jiwer.SubstituteRegexes(substitutions),
         jiwer.RemovePunctuation(),
         jiwer.Strip(),
         jiwer.ReduceToListOfListOfChars(),

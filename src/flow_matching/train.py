@@ -15,7 +15,7 @@ from .configs import ConditionalFlowMatchingConfig
 from .data import get_collate_fn
 from .models import ConditionalFlowMatchingModel
 from .utils.misc import fix_random_seed, get_lr_schedule
-from .utils.whisper import WhisperEncoder
+from .utils.textless import embedding
 
 sys.path.append("src/utmos")
 warnings.simplefilter("ignore", FutureWarning)
@@ -152,15 +152,10 @@ def train_flow_matching(config):
             std=config.flow_matching.std,
             predict_duration=config.flow_matching.predict_duration,
         ),
-        torch.nn.Embedding.from_pretrained(
-            torch.cat(
-                (
-                    torch.zeros(1, config.flow_matching.dim_cond_emb),
-                    WhisperEncoder.from_pretrained(config.tokenizer.name).quantizer,
-                )
-            ),
-            freeze=True,
-            padding_idx=0,
+        embedding(
+            config.tokenizer.dense_model_name,
+            config.tokenizer.quantizer_model_name,
+            config.tokenizer.vocab_size,
         ),
     ).cuda()
 

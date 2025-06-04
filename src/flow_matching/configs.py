@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from transformers import PretrainedConfig
 
@@ -45,8 +45,8 @@ class ConditionalFlowMatchingWithBigVGanConfig(PretrainedConfig):
 
     def __init__(
         self,
-        model_config: Dict | None = None,
-        vocoder_config: Dict | None = None,
+        model_config: Optional[Dict] = None,
+        vocoder_config: Optional[Dict] = None,
         **kwargs,
     ):
         if model_config is None:

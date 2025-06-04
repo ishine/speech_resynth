@@ -3,9 +3,12 @@ from pathlib import Path
 import librosa
 import torch
 import torchaudio
+from datasets import Array2D, Dataset, DatasetDict, Features, Sequence, Value
 from tqdm import tqdm
 
 from ..bigvgan.data import mel_spectrogram
+from .data import LibriTTS_R
+from .utils.textless import load_encoder
 
 
 def resample(config):
@@ -29,6 +32,62 @@ def resample(config):
         wav_path.parent.mkdir(parents=True, exist_ok=True)
         wav_path = str(wav_path)  # for sox backend
         torchaudio.save(wav_path, wav, 16000)
+
+
+def tokenize_dataset(config):
+    encoder = load_encoder(
+        config.tokenizer.dense_model_name,
+        config.tokenizer.quantizer_model_name,
+        config.tokenizer.vocab_size,
+        config.tokenizer.deduplicate,
+    )
+
+    trainset = LibriTTS_R(config.dataset.wav_dir, split="train-*")
+    devset = LibriTTS_R(config.dataset.wav_dir, config.dataset.wav_dir_orig, split="dev-clean")
+
+    train_loader = torch.utils.data.DataLoader(trainset)
+    dev_loader = torch.utils.data.DataLoader(devset)
+
+    trainset = _encode(encoder, train_loader)
+    devset = _encode(encoder, dev_loader)
+
+    dataset = DatasetDict({"train": trainset, "dev": devset})
+    dataset.push_to_hub(config.dataset.name)
+
+
+def _encode(encoder, dataloader: torch.utils.data.DataLoader):
+    def generate_dataset():
+        for item in tqdm(dataloader):
+            input_values = item["input_values"].cuda()
+            input_values = input_values / input_values.abs().max() * 0.95
+
+            spectrogram_labels = mel_spectrogram(input_values).squeeze(0)  # (80, len)
+            spectrogram_labels = spectrogram_labels.transpose(0, 1)  # (len, 80)
+            spectrogram_labels = spectrogram_labels.cpu().tolist()
+
+            try:
+                units = encoder(item["input_values"].cuda())["units"].tolist()
+
+                item = {
+                    "id": item["name"][0],
+                    "units": units,
+                    "transcript": item["transcript"][0],
+                    "spectrogram": spectrogram_labels,
+                }
+                yield item
+            except:
+                pass
+
+    features = Features(
+        {
+            "id": Value("string"),
+            "units": Sequence(Value("int32")),
+            "transcript": Value("string"),
+            "spectrogram": Array2D(shape=(None, 80), dtype="float32"),
+        }
+    )
+
+    return Dataset.from_generator(generate_dataset, features=features)
 
 
 def extract_features(config):

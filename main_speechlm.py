@@ -7,27 +7,27 @@ from src.speechlm.train import train
 
 
 class TaskRunner:
-    def encode(self, config: str = "configs/speechlm/whisper.yaml", spkids: str = "1-9"):
+    def encode(self, config: str = "configs/speechlm/hubert.yaml", spkids: str = "1-9"):
         config = OmegaConf.load(config)
         encode(config, spkids)
 
-    def tokenize(self, config: str = "configs/speechlm/whisper.yaml"):
+    def tokenize(self, config: str = "configs/speechlm/hubert.yaml"):
         config = OmegaConf.load(config)
         tokenize(config)
 
-    def tokenize_slm21(self, config: str = "configs/speechlm/whisper.yaml"):
+    def tokenize_slm21(self, config: str = "configs/speechlm/hubert.yaml"):
         config = OmegaConf.load(config)
         tokenize_slm21(config)
 
-    def train(self, config: str = "configs/speechlm/whisper.yaml"):
+    def train(self, config: str = "configs/speechlm/hubert.yaml"):
         config = OmegaConf.load(config)
         train(config)
 
-    def eval(self, config: str = "configs/speechlm/whisper.yaml"):
+    def eval(self, config: str = "configs/speechlm/hubert.yaml"):
         config = OmegaConf.load(config)
         evaluate(config)
 
-    def __call__(self, config: str = "configs/speechlm/whisper.yaml", spkids: str = "1-9"):
+    def __call__(self, config: str = "configs/speechlm/hubert.yaml", spkids: str = "1-9"):
         config = OmegaConf.load(config)
         encode(config, spkids)
         tokenize(config)
