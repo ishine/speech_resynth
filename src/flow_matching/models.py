@@ -33,7 +33,7 @@ from transformers.models.fastspeech2_conformer.modeling_fastspeech2_conformer im
 from ..bigvgan.bigvgan import BigVGan, BigVGanConfig
 from ..bigvgan.data import dynamic_range_compression_torch
 from .configs import ConditionalFlowMatchingConfig, ConditionalFlowMatchingWithBigVGanConfig
-from .modules.fastspeech.modules import ConditionalFlowMatchingDurationPredictor
+from .modules.fastspeech import ConditionalFlowMatchingDurationPredictor
 from .modules.time_embed import TimestepEmbedding
 from .modules.transformer import Transformer
 

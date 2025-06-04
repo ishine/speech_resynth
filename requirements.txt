@@ -14,5 +14,5 @@ scikit-learn==1.4.2
 tensorboard==2.17.0
 torch==2.5.1+cu121
 torchaudio==2.5.1+cu121
-transformers==4.51.2
+transformers==4.52.4
 zerospeech-benchmarks==0.9.4

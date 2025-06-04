@@ -30,7 +30,7 @@ from einops import rearrange
 from torch import nn
 
 from .alibi import get_alibi
-from .fastspeech.modules import FeedForward
+from .fastspeech import FeedForward
 from .norm import AdaptiveRMSNorm
 
 

@@ -21,7 +21,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from ...configs import ConditionalFlowMatchingConfig
+from ..configs import ConditionalFlowMatchingConfig
 
 
 class SiGLU(nn.Module):
