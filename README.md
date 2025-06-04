@@ -62,10 +62,7 @@ audio_values = decoder(units)
 import torch
 import torchaudio
 from textless.data.speech_encoder import SpeechEncoder
-from tokenizers import Tokenizer
 from transformers import LlamaForCausalLM
-
-from src.speechlm.utils import convert_units_to_unicode
 
 wav_path = "/path/to/wav"
 
@@ -77,9 +74,6 @@ encoder = SpeechEncoder.by_name(
     need_f0=False,
 ).cuda()
 
-# BPE tokenizer
-tokenizer = Tokenizer.from_file("/path/to/pretrained/tokenizer.json")
-
 model = LlamaForCausalLM.from_pretrained("/path/to/pretrained/model").cuda()
 
 # load a waveform
@@ -87,11 +81,7 @@ waveform, sr = torchaudio.load(wav_path)
 waveform = torchaudio.functional.resample(waveform, sr, 16000)
 
 # encode a waveform into pseudo-phonetic units
-units = encoder(waveform.cuda())["units"].tolist()
-unicodes = convert_units_to_unicode(units)
-
-# BPE
-input_ids = tokenizer.encode(unicodes).ids
+input_ids = encoder(waveform.cuda())["units"].tolist()
 input_ids = torch.tensor([input_ids], device="cuda") + 2  # 0: pad, 1: EOS
 
 # Speech LM

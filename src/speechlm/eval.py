@@ -4,9 +4,10 @@ from pathlib import Path
 import pandas as pd
 import torch
 import torch.nn.functional as F
+from datasets import load_dataset
 from transformers import LlamaForCausalLM
 
-from .utils import load_named_units_from_json
+from .data import get_collate_fn
 
 
 def evaluate(config):
@@ -22,17 +23,21 @@ def evaluate(config):
 
     _eval(
         model,
-        config.dataset.swuggy_test_file,
+        config.dataset.swuggy,
+        "test",
         Path(config.dataset.result_dir) / "lexical/test.txt",
         config.dataloader.batch_size_per_device,
         num_special_tokens,
+        config.model.pad_token_id,
     )
     _eval(
         model,
-        config.dataset.sblimp_test_file,
+        config.dataset.sblimp,
+        "test",
         Path(config.dataset.result_dir) / "syntactic/test.txt",
         config.dataloader.batch_size_per_device,
         num_special_tokens,
+        config.model.pad_token_id,
     )
 
     subprocess.run(
@@ -71,15 +76,24 @@ def evaluate(config):
 def _eval(
     model: LlamaForCausalLM,
     in_file,
+    split: str,
     out_file,
     batch_size: int,
     num_special_tokens: int = 2,
+    pad_token_id: int = 0,
 ):
+    dataset = load_dataset(in_file, split=split)
+    loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size,
+        collate_fn=get_collate_fn(num_special_tokens=num_special_tokens, pad_token_id=pad_token_id),
+    )
+
     with open(out_file, "w") as f:
-        for batch in load_named_units_from_json(in_file, batch_size, num_special_tokens):
+        for batch in loader:
             # Speech LM
             input_ids = batch["input_ids"].cuda()
-            labels = input_ids.masked_fill(input_ids.eq(0), -100)
+            labels = batch["labels"].cuda()
             logits = model(input_ids=input_ids, labels=labels).logits.transpose(1, 2)
 
             labels = F.pad(labels, (0, 1), value=-100)

@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import torch
 import torchaudio
@@ -40,45 +40,37 @@ class SpeechDataset(torch.utils.data.Dataset):
         }
 
 
-class UnitDataset(torch.utils.data.Dataset):
-    def __init__(
-        self,
-        files,
-        units_per_sample: int,
-        num_special_tokens: int = 2,
-        eos_token_id: int = 1,
-    ):
-        self.input_ids = []
-        for file in files:
-            with open(file) as f:
-                for units in f:
-                    units = units.rstrip().split()
-                    units = torch.tensor([int(u) + num_special_tokens for u in units] + [eos_token_id])
-                    self.input_ids.append(units)
+def get_collate_fn(
+    num_special_tokens: int = 2,
+    pad_token_id: int = 0,
+    units_per_sample: Optional[int] = None,
+):
+    def collate_fn(batch) -> Dict[str, torch.LongTensor]:
+        input_ids = []
+        names = []
 
-        self.units_per_sample = units_per_sample
+        for item in batch:
+            units = torch.tensor(item["units"]) + num_special_tokens
 
-    def __len__(self) -> int:
-        return len(self.input_ids)
+            if units_per_sample:
+                diff = len(units) - units_per_sample
 
-    def __getitem__(self, n: int) -> Dict[str, torch.Tensor]:
-        input_ids = self.input_ids[n]
-        attention_mask = torch.ones_like(input_ids)
+                if diff > 0:
+                    start = random.randrange(diff)
+                    units = units[start : start + units_per_sample]
 
-        diff = len(input_ids) - self.units_per_sample
+            input_ids.append(units)
+            names.append(item["id"])
 
-        if diff > 0:
-            start = random.randrange(diff)
-            input_ids = input_ids[start : start + self.units_per_sample]
-            attention_mask = attention_mask[start : start + self.units_per_sample]
-        else:
-            input_ids = torch.nn.functional.pad(input_ids, (0, -diff))
-            attention_mask = torch.nn.functional.pad(attention_mask, (0, -diff))
-
-        labels = input_ids.masked_fill(input_ids.eq(0), -100)
+        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=pad_token_id)
+        attention_mask = input_ids.ne(pad_token_id).long()
+        labels = input_ids.masked_fill(input_ids.eq(pad_token_id), -100)
 
         return {
             "input_ids": input_ids,
             "attention_mask": attention_mask,
             "labels": labels,
+            "names": names,
         }
+
+    return collate_fn

@@ -5,12 +5,13 @@ from pathlib import Path
 import pandas as pd
 import torch
 import torch.distributed as dist
+from datasets import load_dataset
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
 from transformers import LlamaConfig, LlamaForCausalLM
 
-from .data import UnitDataset
+from .data import get_collate_fn
 from .eval import _eval
 from .utils import fix_random_seed, get_lr_schedule
 
@@ -27,17 +28,21 @@ def validate(config, model, step: int, writer: SummaryWriter, num_special_tokens
 
     _eval(
         model,
-        config.dataset.swuggy_dev_file,
+        config.dataset.swuggy,
+        "dev",
         Path(config.dataset.result_dir) / "lexical/dev.txt",
         config.dataloader.batch_size_per_device,
         num_special_tokens,
+        config.model.pad_token_id,
     )
     _eval(
         model,
-        config.dataset.sblimp_dev_file,
+        config.dataset.sblimp,
+        "dev",
         Path(config.dataset.result_dir) / "syntactic/dev.txt",
         config.dataloader.batch_size_per_device,
         num_special_tokens,
+        config.model.pad_token_id,
     )
 
     subprocess.run(
@@ -91,18 +96,18 @@ def train(config):
         }
     )
 
-    trainset = UnitDataset(
-        [config.dataset.train_file],
-        units_per_sample=config.dataset.units_per_sample,
-        num_special_tokens=num_special_tokens,
-        eos_token_id=config.model.eos_token_id,
-    )
+    trainset = load_dataset(config.dataset.train, keep_in_memory=True)
     sampler = DistributedSampler(trainset) if dist.is_initialized() else None
     train_loader = DataLoader(
         trainset,
         batch_size=config.dataloader.batch_size_per_device,
         shuffle=(sampler is None),
         sampler=sampler,
+        collate_fn=get_collate_fn(
+            num_special_tokens=num_special_tokens,
+            pad_token_id=config.model.pad_token_id,
+            units_per_sample=config.dataset.units_per_sample,
+        ),
     )
 
     if rank == 0:

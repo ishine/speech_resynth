@@ -2,14 +2,11 @@ dataset:
   wav_dir_train: "data/librilight"
   ext_audio: ".flac"
 
-  unicode_train: "data/speechlm/hubert/unicode/train"
-  train_file: "data/speechlm/hubert/unit/train.txt"
+  train: "ryota-komatsu/librilight"
   units_per_sample: 125
 
-  swuggy_dev_file: "data/speechlm/hubert/unit/lexical/dev.json"
-  sblimp_dev_file: "data/speechlm/hubert/unit/syntactic/dev.json"
-  swuggy_test_file: "data/speechlm/hubert/unit/lexical/test.json"
-  sblimp_test_file: "data/speechlm/hubert/unit/syntactic/test.json"
+  swuggy: "ryota-komatsu/swuggy"  # lexical
+  sblimp: "ryota-komatsu/sblimp"  # syntactic
 
   APP_DIR: "data/zr-data"
   result_dir: "results/speechlm/hubert"
@@ -19,7 +16,7 @@ dataloader:
 
 model:
   path: "models/speechlm/hubert"
-  vocab_size: 8192  # BPE vocab size
+  vocab_size: ${s2u.vocab_size}
   hidden_size: 768
   intermediate_size: 2048  # 4 * hidden_size * 2 / 3
   num_hidden_layers: 12
@@ -45,7 +42,4 @@ s2u:
   dense_model_name: "hubert-base-ls960"
   quantizer_model_name: "kmeans"
   vocab_size: 100
-
-  tokenizer_path: "models/speechlm/hubert/tokenizer.json"
-
   num_workers: 16
