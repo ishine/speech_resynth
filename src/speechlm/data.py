@@ -41,8 +41,7 @@ class SpeechDataset(torch.utils.data.Dataset):
 
 
 def get_collate_fn(
-    num_special_tokens: int = 2,
-    pad_token_id: int = 0,
+    tokenizer,
     units_per_sample: Optional[int] = None,
 ):
     def collate_fn(batch) -> Dict[str, torch.LongTensor]:
@@ -50,7 +49,7 @@ def get_collate_fn(
         names = []
 
         for item in batch:
-            units = torch.tensor(item["units"]) + num_special_tokens
+            units = item["units"]
 
             if units_per_sample:
                 diff = len(units) - units_per_sample
@@ -59,12 +58,14 @@ def get_collate_fn(
                     start = random.randrange(diff)
                     units = units[start : start + units_per_sample]
 
-            input_ids.append(units)
+            input_ids.append("".join([f"<{unit}>" for unit in units]))
             names.append(item["id"])
 
-        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=pad_token_id)
-        attention_mask = input_ids.ne(pad_token_id).long()
-        labels = input_ids.masked_fill(input_ids.eq(pad_token_id), -100)
+        inputs = tokenizer(input_ids)
+
+        input_ids = inputs.input_ids
+        attention_mask = inputs.attention_mask
+        labels = input_ids.masked_fill(attention_mask.bool().logical_not(), -100)
 
         return {
             "input_ids": input_ids,

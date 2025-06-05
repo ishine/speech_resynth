@@ -15,16 +15,9 @@ dataloader:
   batch_size_per_device: 1000  # effective batch size (tokens) = dataset.units_per_sample * batch_size_per_device * #GPUs
 
 model:
+  name: "microsoft/Phi-4-mini-reasoning"
   path: "models/speechlm/hubert"
   vocab_size: ${s2u.vocab_size}
-  hidden_size: 768
-  intermediate_size: 2048  # 4 * hidden_size * 2 / 3
-  num_hidden_layers: 12
-  num_attention_heads: 12
-  pad_token_id: 0
-  bos_token_id: null
-  eos_token_id: 1  # for generation stopping criteria
-  tie_word_embeddings: true
 
 optim:
   epoch: 24

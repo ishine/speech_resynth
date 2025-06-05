@@ -5,39 +5,30 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from datasets import load_dataset
-from transformers import LlamaForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .data import get_collate_fn
 
 
 def evaluate(config):
-    model = LlamaForCausalLM.from_pretrained(config.model.path).cuda()
-
-    num_special_tokens = len(
-        {
-            token_id
-            for token_id in (config.model.pad_token_id, config.model.bos_token_id, config.model.eos_token_id)
-            if token_id is not None
-        }
-    )
+    model = AutoModelForCausalLM.from_pretrained(config.model.path).cuda()
+    tokenizer = AutoTokenizer.from_pretrained(config.model.path)
 
     _eval(
         model,
+        tokenizer,
         config.dataset.swuggy,
         "test",
         Path(config.dataset.result_dir) / "lexical/test.txt",
         config.dataloader.batch_size_per_device,
-        num_special_tokens,
-        config.model.pad_token_id,
     )
     _eval(
         model,
+        tokenizer,
         config.dataset.sblimp,
         "test",
         Path(config.dataset.result_dir) / "syntactic/test.txt",
         config.dataloader.batch_size_per_device,
-        num_special_tokens,
-        config.model.pad_token_id,
     )
 
     subprocess.run(
@@ -74,19 +65,18 @@ def evaluate(config):
 
 @torch.inference_mode()
 def _eval(
-    model: LlamaForCausalLM,
+    model,
+    tokenizer,
     in_file,
     split: str,
     out_file,
     batch_size: int,
-    num_special_tokens: int = 2,
-    pad_token_id: int = 0,
 ):
     dataset = load_dataset(in_file, split=split)
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size,
-        collate_fn=get_collate_fn(num_special_tokens=num_special_tokens, pad_token_id=pad_token_id),
+        collate_fn=get_collate_fn(tokenizer),
     )
 
     with open(out_file, "w") as f:

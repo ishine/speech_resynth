@@ -9,7 +9,7 @@ from datasets import load_dataset
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
-from transformers import LlamaConfig, LlamaForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .data import get_collate_fn
 from .eval import _eval
@@ -17,7 +17,7 @@ from .utils import fix_random_seed, get_lr_schedule
 
 
 @torch.inference_mode()
-def validate(config, model, step: int, writer: SummaryWriter, num_special_tokens: int = 2):
+def validate(config, model, tokenizer, step: int, writer: SummaryWriter):
     torch.cuda.empty_cache()
     model.eval()
 
@@ -28,21 +28,19 @@ def validate(config, model, step: int, writer: SummaryWriter, num_special_tokens
 
     _eval(
         model,
+        tokenizer,
         config.dataset.swuggy,
         "dev",
         Path(config.dataset.result_dir) / "lexical/dev.txt",
         config.dataloader.batch_size_per_device,
-        num_special_tokens,
-        config.model.pad_token_id,
     )
     _eval(
         model,
+        tokenizer,
         config.dataset.sblimp,
         "dev",
         Path(config.dataset.result_dir) / "syntactic/dev.txt",
         config.dataloader.batch_size_per_device,
-        num_special_tokens,
-        config.model.pad_token_id,
     )
 
     subprocess.run(
@@ -88,13 +86,12 @@ def train(config):
     # create model and move it to GPU with id rank
     device_id = rank % torch.cuda.device_count()
 
-    num_special_tokens = len(
-        {
-            token_id
-            for token_id in (config.model.pad_token_id, config.model.bos_token_id, config.model.eos_token_id)
-            if token_id is not None
-        }
-    )
+    tokenizer = AutoTokenizer.from_pretrained(config.model.name)
+    vocab = tokenizer.get_vocab()
+    units = [f"<{unit}>" for unit in range(config.s2u.vocab_size)]
+    for unit in units:
+        assert unit not in vocab
+    tokenizer.add_tokens(units)
 
     trainset = load_dataset(config.dataset.train, keep_in_memory=True)
     sampler = DistributedSampler(trainset) if dist.is_initialized() else None
@@ -104,8 +101,7 @@ def train(config):
         shuffle=(sampler is None),
         sampler=sampler,
         collate_fn=get_collate_fn(
-            num_special_tokens=num_special_tokens,
-            pad_token_id=config.model.pad_token_id,
+            tokenizer,
             units_per_sample=config.dataset.units_per_sample,
         ),
     )
@@ -113,20 +109,8 @@ def train(config):
     if rank == 0:
         writer = SummaryWriter(config.model.path)
 
-    model = LlamaForCausalLM(
-        LlamaConfig(
-            vocab_size=config.model.vocab_size + num_special_tokens,
-            hidden_size=config.model.hidden_size,
-            intermediate_size=config.model.intermediate_size,
-            num_hidden_layers=config.model.num_hidden_layers,
-            num_attention_heads=config.model.num_attention_heads,
-            pad_token_id=config.model.pad_token_id,
-            bos_token_id=config.model.bos_token_id,
-            eos_token_id=config.model.eos_token_id,
-            tie_word_embeddings=config.model.tie_word_embeddings,
-        )
-    )
-    model.tie_weights()
+    model = AutoModelForCausalLM.from_pretrained(config.model.name)
+    model.resize_token_embeddings(len(tokenizer))
     model.to(device_id)
     model = DDP(model, device_ids=[device_id])
 
@@ -227,10 +211,11 @@ def train(config):
                 }
                 Path(config.model.path).parent.mkdir(parents=True, exist_ok=True)
                 model.module.save_pretrained(config.model.path)
+                tokenizer.save_pretrained(config.model.path)
                 torch.save(ckpt, checkpoint_path)
                 torch.save(ckpt, checkpoint_path.with_name(f"{checkpoint_path.name}{global_step:08}"))
 
-                validate(config, model, global_step, writer, num_special_tokens)
+                validate(config, model, tokenizer, global_step, writer)
 
                 if global_step == config.optim.total_steps:
                     torch.distributed.destroy_process_group()

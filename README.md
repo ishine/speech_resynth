@@ -1,4 +1,4 @@
-# Speech Resynthesis and Language Modeling with Flow Matching and Llama
+# Speech Resynthesis and Language Modeling
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org)
@@ -62,7 +62,7 @@ audio_values = decoder(units)
 import torch
 import torchaudio
 from textless.data.speech_encoder import SpeechEncoder
-from transformers import LlamaForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 wav_path = "/path/to/wav"
 
@@ -74,7 +74,8 @@ encoder = SpeechEncoder.by_name(
     need_f0=False,
 ).cuda()
 
-model = LlamaForCausalLM.from_pretrained("/path/to/pretrained/model").cuda()
+model = AutoModelForCausalLM.from_pretrained("/path/to/pretrained/model").cuda()
+tokenizer = AutoTokenizer.from_pretrained("/path/to/pretrained/model")
 
 # load a waveform
 waveform, sr = torchaudio.load(wav_path)
@@ -82,7 +83,7 @@ waveform = torchaudio.functional.resample(waveform, sr, 16000)
 
 # encode a waveform into pseudo-phonetic units
 input_ids = encoder(waveform.cuda())["units"].tolist()
-input_ids = torch.tensor([input_ids], device="cuda") + 2  # 0: pad, 1: EOS
+input_ids = tokenizer("".join([f"<{unit}>" for unit in input_ids])).input_ids.cuda()
 
 # Speech LM
 logits = model(input_ids=input_ids).logits
