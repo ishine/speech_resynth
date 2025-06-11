@@ -19,6 +19,11 @@ model:
   path: "models/speechlm/hubert"
   vocab_size: ${s2u.vocab_size}
 
+  lora:
+    r: 32
+    lora_alpha: 8
+    target_modules: "all-linear"
+
 optim:
   epoch: 24
   warmup_steps: 100

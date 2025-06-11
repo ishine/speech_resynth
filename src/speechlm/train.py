@@ -6,6 +6,7 @@ import pandas as pd
 import torch
 import torch.distributed as dist
 from datasets import load_dataset
+from peft import LoraConfig, TaskType, get_peft_model
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
@@ -109,8 +110,18 @@ def train(config):
     if rank == 0:
         writer = SummaryWriter(config.model.path)
 
+    peft_config = LoraConfig(
+        task_type=TaskType.CAUSAL_LM,
+        inference_mode=False,
+        r=config.model.lora.r,
+        lora_alpha=config.model.lora.lora_alpha,
+        target_modules=config.model.lora.target_modules,
+    )
+
     model = AutoModelForCausalLM.from_pretrained(config.model.name)
     model.resize_token_embeddings(len(tokenizer))
+    model = get_peft_model(model, peft_config)
+    model.print_trainable_parameters()
     model.to(device_id)
     model = DDP(model, device_ids=[device_id])
 
